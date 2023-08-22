@@ -1,0 +1,4 @@
+[submodule "ceph"]
+	path = ceph
+	url = https://github.com/giubacc/ceph
+	branch = ha-testing

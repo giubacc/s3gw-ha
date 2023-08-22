@@ -1,0 +1,32 @@
+FROM s3gw-base as s3gw
+
+ARG QUAY_EXPIRATION=Never
+ARG S3GW_VERSION=Development
+ARG ID=s3gw
+
+ENV ID=${ID}
+
+LABEL Name=s3gw
+LABEL Version=${S3GW_VERSION}
+LABEL quay.expires-after=${QUAY_EXPIRATION}
+
+VOLUME ["/data"]
+
+COPY ceph/build/bin/radosgw /radosgw/bin
+COPY ["ceph/build/lib/librados.so", \
+      "ceph/build/lib/librados.so.2", \
+      "ceph/build/lib/librados.so.2.0.0", \
+      "ceph/build/lib/libceph-common.so", \
+      "ceph/build/lib/libceph-common.so.2", \
+      "/radosgw/lib/" ]
+
+EXPOSE 7480
+EXPOSE 7481
+
+ENTRYPOINT [ "radosgw", "-d", \
+  "--no-mon-config", \
+  "--id", "${ID}", \
+  "--rgw-data", "/data/", \
+  "--run-dir", "/run/", \
+  "--rgw-sfs-data-path", "/data" ]
+CMD [ "--rgw-backend-store", "sfs", "--debug-rgw", "20" ]

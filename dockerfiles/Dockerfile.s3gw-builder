@@ -1,0 +1,6 @@
+FROM s3gw-cmaker as s3gw-builder
+
+WORKDIR /ceph/build
+ENV CCACHE_DIR=/build.ccache
+
+ENTRYPOINT [ "ninja", "bin/radosgw"]

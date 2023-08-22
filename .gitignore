@@ -1,0 +1,12 @@
+tmp
+*.tmp
+.DS_Store
+.build
+*.swp
+bin
+.idea
+.vscode
+scenario.json
+properties.json
+ceph
+build.ccache
