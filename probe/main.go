@@ -41,7 +41,7 @@ func (p *Probe) submitDeath(evt *DeathEvent) {
 }
 
 func (p *Probe) submitStart(evt *StartEvent) {
-	if p.CurrentStart != nil {
+	if p.CurrentStart != nil || p.CurrentDeath == nil {
 		Logger.Error("bad state for submitting a start event")
 		return
 	}
@@ -59,6 +59,7 @@ func (p *Probe) submitRestart() {
 var Prober Probe
 
 func main() {
+	flag.StringVar(&Cfg.EndpointS3GW, "s3gw-endpoint", "http://localhost:7480", "Specify s3gw endpoint")
 	flag.StringVar(&Cfg.LogLevel, "v", "inf", "Specify logging verbosity [off, trc, inf, wrn, err]")
 	flag.UintVar(&Cfg.VerbLevel, "vl", 5, "Verbosity level")
 

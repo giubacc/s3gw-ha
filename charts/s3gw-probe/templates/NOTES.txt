@@ -1,0 +1,5 @@
+Thank you for installing {{ .Chart.Name }} {{ printf "v%s" .Chart.Version }}
+
+The s3gw-probe endpoint is available at:
+
+{{ printf "%s.%s" (include "s3gw-probe.serviceName" .) .Values.backend.publicDomain | indent 4 }}

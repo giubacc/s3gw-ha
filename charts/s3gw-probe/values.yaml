@@ -1,0 +1,12 @@
+backend:
+  ingress:
+    enabled: true
+  serviceName: ""
+  publicDomain: ""
+  customArgs: []
+  customEnvs: []
+  imageName:
+  imageTag:
+  imageRegistry:
+  imagePullPolicy:
+s3gwEndpoint: s3gw-s3gw-ha.s3gw-ha.svc.cluster.local

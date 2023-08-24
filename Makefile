@@ -25,10 +25,14 @@ s3gw-cmake:
 	@./scripts/run-cmake.sh
 
 s3gw-build:
-	@./scripts/build-image.sh
+	@./scripts/build-s3gw-image.sh
 
 probe-build:
 	go build -o probe/bin/probe probe/main.go
+	docker build -t ghcr.io/giubacc/s3gw-probe:latest -f dockerfiles/Dockerfile.s3gw-probe .
+
+probe-push-image:
+	docker push ghcr.io/giubacc/s3gw-probe:latest
 
 ########################################################################
 # cluster Create/Delete/Prepare
@@ -46,8 +50,17 @@ cluster-delete:
 ########################################################################
 # s3gw Deploy/Undeploy
 
-deploy:
+s3gw-deploy:
 	@./scripts/cluster-s3gw-deploy.sh
 
-undeploy:
+s3gw-undeploy:
 	helm uninstall -n s3gw-ha s3gw
+
+########################################################################
+# probe Deploy/Undeploy
+
+probe-deploy:
+	@./scripts/cluster-probe-deploy.sh
+
+probe-undeploy:
+	helm uninstall -n s3gw-ha s3gw-probe

@@ -1,4 +1,4 @@
-# s3gw-ha
+# s3gw-ha-research
 
 ## Local setup
 
@@ -78,13 +78,25 @@ make cluster-delete
 ### Deploy the s3gw-ha/s3gw on the cluster
 
 ```shell
-make deploy
+make s3gw-deploy
 ```
 
 ### Undeploy the s3gw-ha/s3gw from the cluster
 
 ```shell
-make undeploy
+make s3gw-undeploy
+```
+
+### Deploy the s3gw-ha/s3gw-probe on the cluster
+
+```shell
+make probe-deploy
+```
+
+### Undeploy the s3gw-ha/s3gw-probe from the cluster
+
+```shell
+make probe-undeploy
 ```
 
 ## License

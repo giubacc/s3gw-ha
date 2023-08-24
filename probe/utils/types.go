@@ -13,8 +13,9 @@ package utils
 
 type Config struct {
 	//logging
-	LogLevel  string
-	VerbLevel uint
+	LogLevel     string
+	VerbLevel    uint
+	EndpointS3GW string
 }
 
 type DeathEvent struct {

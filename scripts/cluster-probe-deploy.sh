@@ -12,30 +12,22 @@
 
 set -e
 
-imageS3GW="quay.io/s3gw/s3gw"
-IMAGE_TAG=${IMAGE_TAG:-$(git describe --tags --always)}
 SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 
 source "${SCRIPT_DIR}/helpers.sh"
 
 prepare_system_domain
 
-# IMAGE_TAG is the one built from the 'make build-images'
-echo "using s3gw image-tag    : $IMAGE_TAG"
+k3d image import -c s3gw-ha ghcr.io/giubacc/s3gw-probe:latest
+echo "Importing s3gw-probe image Completed ✔️"
 
-k3d image import -c s3gw-ha "${imageS3GW}:v${IMAGE_TAG}"
-echo "Importing s3gw image Completed ✔️"
-
-function deploy_s3gw_latest_released {
-  helm upgrade --wait --install -n s3gw-ha --create-namespace s3gw s3gw/s3gw  \
-    --set publicDomain="$S3GW_SYSTEM_DOMAIN" \
-    --set ui.publicDomain="$S3GW_SYSTEM_DOMAIN" \
-    --set imageTag=v"${IMAGE_TAG}" \
-    --set rgwCustomArgs="{--probe-endpoint,http://s3gw-probe-s3gw-ha.s3gw-ha.svc.cluster.local:80}"
+function deploy_s3gw_probe {
+  helm upgrade --wait --install -n s3gw-ha --create-namespace s3gw-probe charts/s3gw-probe \
+    --set backend.publicDomain="$S3GW_SYSTEM_DOMAIN"
 }
 
-echo "Deploying s3gw"
-deploy_s3gw_latest_released
+echo "Deploying s3gw-probe"
+deploy_s3gw_probe
 
 echo
-echo "Done deploying s3gw! ✔️"
+echo "Done deploying s3gw-probe! ✔️"

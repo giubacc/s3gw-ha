@@ -1,0 +1,18 @@
+---
+apiVersion: v2
+name: s3gw-probe
+version: 0.1.0
+kubeVersion: ">=1.14"
+description: |
+  A tool for performing some probes on s3gw and collecting statistics.
+type: application
+keywords:
+  - RESTful
+home: https://github.com/giubacc/s3gw-ha-research
+sources:
+  - https://github.com/giubacc/s3gw-ha-research
+maintainers:
+  - name: Giuseppe Baccini
+    email: giuseppe.baccini@suse.com
+appVersion: "latest"
+deprecated: false
