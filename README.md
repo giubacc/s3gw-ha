@@ -24,7 +24,11 @@ git submodule update --init --recursive
 Build the s3gw's image:
 
 ```shell
-make build
+make s3gw-cmake
+```
+
+```shell
+make s3gw-build
 ```
 
 > **Be patient**: this will take long.
@@ -42,6 +46,16 @@ Where `{@TAG}` is the evaluation of the following expression:
 
 ```bash
 $(git describe --tags --always)
+```
+
+### Build the prober
+
+```shell
+make tidy
+```
+
+```shell
+make probe-build
 ```
 
 ### Create the cluster
@@ -63,11 +77,14 @@ make cluster-delete
 
 ### Deploy the s3gw-ha/s3gw on the cluster
 
-Optionally, you can deploy the `s3gw-acceptance-0/s3gw-0` instance in the acceptance
-cluster with:
+```shell
+make deploy
+```
+
+### Undeploy the s3gw-ha/s3gw from the cluster
 
 ```shell
-make acceptance-cluster-s3gw-deploy
+make undeploy
 ```
 
 ## License

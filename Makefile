@@ -9,34 +9,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-CGO_ENABLED ?= 0
-
-tag:
-	@git describe --tags --abbrev=0
-
-lint:
-	golangci-lint run
-
 tidy:
 	go mod tidy
-
-fmt:
-	go fmt ./...
 
 ########################################################################
 # Build
 
-clean-ccache:
+s3gw-clean-ccache:
 	sudo rm -rf build.ccache
 
-clean-build:
+s3gw-clean-build:
 	sudo rm -rf ceph/build
 
-cmake:
+s3gw-cmake:
 	@./scripts/run-cmake.sh
 
-build:
+s3gw-build:
 	@./scripts/build-image.sh
+
+probe-build:
+	go build -o probe/bin/probe probe/main.go
 
 ########################################################################
 # cluster Create/Delete/Prepare
