@@ -12,12 +12,21 @@
 package utils
 
 import (
+	"net/http"
 	"os"
 	"strconv"
 	"time"
 
+	. "github.com/aws/aws-sdk-go/aws/credentials"
+	v4 "github.com/aws/aws-sdk-go/aws/signer/v4"
 	"github.com/sirupsen/logrus"
 )
+
+// logger
+var Logger *logrus.Logger
+var Cfg Config
+
+func EpochTime() time.Time { return time.Unix(0, 0) }
 
 func NanoSecName(base string) string {
 	return base + strconv.Itoa(int(time.Now().Nanosecond()))
@@ -49,4 +58,14 @@ func GetLogger(cfg *Config) *logrus.Logger {
 	}
 
 	return logger
+}
+
+func SignHTTPRequestV4(request *http.Request, creds *Credentials) error {
+	signer := v4.NewSigner(creds)
+	//_, err := signer.Sign(request, bytes.NewReader([]byte("")), "S3", "us-east-1", time.Now())
+	_, err := signer.Sign(request, nil, "S3", "us-east-1", time.Now())
+	if err != nil {
+		return err
+	}
+	return nil
 }

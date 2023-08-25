@@ -9,4 +9,8 @@ backend:
   imageTag:
   imageRegistry:
   imagePullPolicy:
-s3gwEndpoint: s3gw-s3gw-ha.s3gw-ha.svc.cluster.local
+s3gw:
+  endpoint: http://s3gw-s3gw-ha.s3gw-ha.svc.cluster.local
+  accessKey: test
+  secretKey: test
+  waitMSecsBeforeTriggerDeath: "2000"

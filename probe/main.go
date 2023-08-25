@@ -12,24 +12,27 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"net/http"
 	. "s3gw-ha/probe/utils"
 	"strconv"
+	"time"
 
+	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/gin-gonic/gin"
-	"github.com/sirupsen/logrus"
 )
-
-// logger
-var Logger *logrus.Logger
-var Cfg Config
 
 type Probe struct {
 	CurrentDeath *DeathEvent
 	CurrentStart *StartEvent
 
-	RestartSet map[int]RestartEvent
+	CurrentPendingRestarts uint
+	CurrentDeathType       string
+	CurrentMark            string
+	CurrentId              int
+
+	RestartSet map[string][]RestartEvent
 }
 
 func (p *Probe) submitDeath(evt *DeathEvent) {
@@ -47,25 +50,61 @@ func (p *Probe) submitStart(evt *StartEvent) {
 	}
 	p.CurrentStart = evt
 	p.submitRestart()
+	if p.CurrentPendingRestarts > 0 {
+		time.Sleep(time.Duration(Cfg.WaitMSecsBeforeTriggerDeath) * time.Millisecond)
+		p.RequestDie()
+	} else {
+		p.CurrentId = 0
+	}
 }
 
 func (p *Probe) submitRestart() {
-	p.RestartSet[len(p.RestartSet)+1] = RestartEvent{Death: p.CurrentDeath, Start: p.CurrentStart}
-	Logger.Infof("inserted restart event: death:%d, start:%d; collected events:%d", p.CurrentDeath.Ts, p.CurrentStart.Ts, len(p.RestartSet))
+	p.CurrentId = p.CurrentId + 1
+	p.RestartSet[p.CurrentMark] = append(p.RestartSet[p.CurrentMark], RestartEvent{Death: p.CurrentDeath, Start: p.CurrentStart, Id: p.CurrentId})
+	Logger.Infof("inserted restart event: mark:%s, death:%d, start:%d; collected events:%d", p.CurrentMark, p.CurrentDeath.Ts, p.CurrentStart.Ts, p.CurrentId)
+	if p.CurrentPendingRestarts > 0 {
+		p.CurrentPendingRestarts = p.CurrentPendingRestarts - 1
+	}
+	Logger.Infof("pending restarts: %d", p.CurrentPendingRestarts)
 	p.CurrentDeath = nil
 	p.CurrentStart = nil
+}
+
+func (p *Probe) RequestDie() {
+	req, err := http.NewRequest("PUT", Cfg.EndpointS3GW, bytes.NewReader([]byte("")))
+	if err != nil {
+		Logger.Errorf("NewRequest:%s", err.Error())
+	}
+	req.URL.Path = "/admin/bucket"
+	req.Header.Set("x-amz-content-sha256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
+	q := req.URL.Query()
+	q.Add("die", "1")
+	q.Add("how", p.CurrentDeathType)
+	req.URL.RawQuery = q.Encode()
+
+	creds := credentials.NewEnvCredentials()
+	if err = SignHTTPRequestV4(req, creds); err != nil {
+		Logger.Errorf("SignHTTPRequestV4:%s", err.Error())
+		return
+	}
+
+	client := &http.Client{}
+	if _, err = client.Do(req); err != nil {
+		Logger.Errorf("Do:%s", err.Error())
+	}
 }
 
 var Prober Probe
 
 func main() {
 	flag.StringVar(&Cfg.EndpointS3GW, "s3gw-endpoint", "http://localhost:7480", "Specify s3gw endpoint")
+	flag.UintVar(&Cfg.WaitMSecsBeforeTriggerDeath, "wbtd", 100, "Wait n milliseconds before trigger death")
 	flag.StringVar(&Cfg.LogLevel, "v", "inf", "Specify logging verbosity [off, trc, inf, wrn, err]")
 	flag.UintVar(&Cfg.VerbLevel, "vl", 5, "Verbosity level")
 
 	flag.Parse()
 
-	Prober.RestartSet = make(map[int]RestartEvent)
+	Prober.RestartSet = make(map[string][]RestartEvent)
 
 	Logger = GetLogger(&Cfg)
 
@@ -74,6 +113,7 @@ func main() {
 	router.PUT("/death", setDeath)
 	router.PUT("/start", setStart)
 	router.GET("/stats", getStats)
+	router.PUT("/probe", probe)
 
 	Logger.Info("start listening and serving ...")
 	router.Run() // listen and serve on 0.0.0.0:8080
@@ -102,5 +142,53 @@ func setStart(c *gin.Context) {
 	}
 }
 
+const (
+	StrNanoS  = "ns"
+	StrMicroS = "us"
+	StrMilliS = "ms"
+	StrSec    = "s"
+)
+
+const (
+	NanoS  = 1
+	MicroS = 1000
+	MilliS = 1000000
+	Sec    = 1000000000
+)
+
+var StrTimeUnit2TimeUnit = map[string]uint64{
+	StrNanoS:  NanoS,
+	StrMicroS: MicroS,
+	StrMilliS: MilliS,
+	StrSec:    Sec}
+
 func getStats(c *gin.Context) {
+	timeUnit := c.Query("time_unit")
+	if timeUnit == "" {
+		timeUnit = StrSec
+	}
+
+	result := Stats{TimeUnit: timeUnit}
+	for mark, restartEvents := range Prober.RestartSet {
+		var evtSeries []RestartEntry
+		for _, evt := range restartEvents {
+			evtSeries = append(evtSeries, RestartEntry{Id: evt.Id, RestartDuration: (evt.Start.Ts - evt.Death.Ts) / StrTimeUnit2TimeUnit[timeUnit]})
+		}
+		result.Entries = append(result.Entries, SeriesEntry{Mark: mark, EvtSeries: evtSeries})
+	}
+	c.JSON(http.StatusOK, result)
+}
+
+func probe(c *gin.Context) {
+	if restarts, err := strconv.ParseUint(c.Query("restarts"), 0, 32); err == nil {
+		Prober.CurrentPendingRestarts = uint(restarts)
+	} else {
+		Logger.Errorf("malformed probe:%s", err.Error())
+		c.String(http.StatusBadRequest, err.Error())
+	}
+
+	Prober.CurrentDeathType = c.Query("how")
+	Prober.CurrentMark = c.Query("mark")
+
+	Prober.RequestDie()
 }

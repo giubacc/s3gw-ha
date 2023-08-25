@@ -24,11 +24,17 @@ spec:
           imagePullPolicy: {{ default "IfNotPresent" .Values.backend.imagePullPolicy }}
           args:
             - "-s3gw-endpoint"
-            - {{ .Values.s3gwEndpoint }}
+            - {{ .Values.s3gw.endpoint }}
+            - "-wbtd"
+            - '{{ .Values.s3gw.waitMSecsBeforeTriggerDeath }}'
 {{- range $.Values.backend.customArgs }}
             - {{ . | quote}}
 {{- end }}
           env:
+            - name: AWS_ACCESS_KEY
+              value: {{ .Values.s3gw.accessKey }}
+            - name: AWS_SECRET_KEY
+              value: {{ .Values.s3gw.secretKey }}
 {{- range $.Values.backend.customEnvs }}
 {{- if (regexMatch "[^=]+=[^=]+" .) }}
 {{- $tokens := split "=" . }}

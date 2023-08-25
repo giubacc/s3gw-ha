@@ -13,9 +13,10 @@ package utils
 
 type Config struct {
 	//logging
-	LogLevel     string
-	VerbLevel    uint
-	EndpointS3GW string
+	LogLevel                    string
+	VerbLevel                   uint
+	EndpointS3GW                string
+	WaitMSecsBeforeTriggerDeath uint //msec
 }
 
 type DeathEvent struct {
@@ -28,6 +29,22 @@ type StartEvent struct {
 }
 
 type RestartEvent struct {
+	Id    int
 	Death *DeathEvent
 	Start *StartEvent
+}
+
+type RestartEntry struct {
+	Id              int    `json:"restart_id"`
+	RestartDuration uint64 `json:"duration"`
+}
+
+type SeriesEntry struct {
+	Mark      string         `json:"mark"`
+	EvtSeries []RestartEntry `json:"series"`
+}
+
+type Stats struct {
+	Entries  []SeriesEntry `json:"probes"`
+	TimeUnit string        `json:"time_unit"`
 }
