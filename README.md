@@ -1,5 +1,7 @@
 # s3gw-ha-research
 
+Find [here](docs/RATIONALE.md) the rationale for this research.
+
 ## Local setup
 
 ### Bootstrap
@@ -48,7 +50,7 @@ Where `{@TAG}` is the evaluation of the following expression:
 $(git describe --tags --always)
 ```
 
-### Build the prober
+### Build the s3gw probe
 
 ```shell
 make tidy

@@ -94,7 +94,7 @@ func (p *Probe) RequestDie() {
 	}
 }
 
-var Prober Probe
+var Prb Probe
 
 func main() {
 	flag.StringVar(&Cfg.EndpointS3GW, "s3gw-endpoint", "http://localhost:7480", "Specify s3gw endpoint")
@@ -104,7 +104,7 @@ func main() {
 
 	flag.Parse()
 
-	Prober.RestartSet = make(map[string][]RestartEvent)
+	Prb.RestartSet = make(map[string][]RestartEvent)
 
 	Logger = GetLogger(&Cfg)
 
@@ -124,7 +124,7 @@ func setDeath(c *gin.Context) {
 	ts := c.Query("ts")
 	if ts, err := strconv.ParseUint(ts, 0, 64); err == nil {
 		evt := DeathEvent{Type: deathType, Ts: ts}
-		Prober.submitDeath(&evt)
+		Prb.submitDeath(&evt)
 	} else {
 		Logger.Errorf("malformed DeathEvent:%s", err.Error())
 		c.String(http.StatusBadRequest, err.Error())
@@ -135,7 +135,7 @@ func setStart(c *gin.Context) {
 	ts := c.Query("ts")
 	if ts, err := strconv.ParseUint(ts, 0, 64); err == nil {
 		evt := StartEvent{Ts: ts}
-		Prober.submitStart(&evt)
+		Prb.submitStart(&evt)
 	} else {
 		Logger.Errorf("malformed StartEvent:%s", err.Error())
 		c.String(http.StatusBadRequest, err.Error())
@@ -169,7 +169,7 @@ func getStats(c *gin.Context) {
 	}
 
 	result := Stats{TimeUnit: timeUnit}
-	for mark, restartEvents := range Prober.RestartSet {
+	for mark, restartEvents := range Prb.RestartSet {
 		var evtSeries []RestartEntry
 		for _, evt := range restartEvents {
 			evtSeries = append(evtSeries, RestartEntry{Id: evt.Id, RestartDuration: (evt.Start.Ts - evt.Death.Ts) / StrTimeUnit2TimeUnit[timeUnit]})
@@ -181,14 +181,14 @@ func getStats(c *gin.Context) {
 
 func probe(c *gin.Context) {
 	if restarts, err := strconv.ParseUint(c.Query("restarts"), 0, 32); err == nil {
-		Prober.CurrentPendingRestarts = uint(restarts)
+		Prb.CurrentPendingRestarts = uint(restarts)
 	} else {
 		Logger.Errorf("malformed probe:%s", err.Error())
 		c.String(http.StatusBadRequest, err.Error())
 	}
 
-	Prober.CurrentDeathType = c.Query("how")
-	Prober.CurrentMark = c.Query("mark")
+	Prb.CurrentDeathType = c.Query("how")
+	Prb.CurrentMark = c.Query("mark")
 
-	Prober.RequestDie()
+	Prb.RequestDie()
 }
