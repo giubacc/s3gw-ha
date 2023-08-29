@@ -1,5 +1,12 @@
 # s3gw-ha-research
 
+This repository has been created with the purpose of offering a shared, replicable
+platform of methodologies and tools to investigate the topic of
+*High Availability*, *HA*, with the [s3gw](https://github.com/aquarist-labs/s3gw).
+
+The original demand for this work can be found in this
+[issue](https://github.com/aquarist-labs/s3gw/issues/361).
+
 Find [here](docs/RATIONALE.md) the rationale for this research.
 
 ## Local setup
