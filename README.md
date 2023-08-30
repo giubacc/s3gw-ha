@@ -1,8 +1,19 @@
 # s3gw-ha-research
 
-This repository has been created with the purpose of offering a shared, replicable
-platform of methodologies and tools to investigate the topic of
-*High Availability*, *HA*, with the [s3gw](https://github.com/aquarist-labs/s3gw).
+- [s3gw-ha-research](#s3gw-ha-research)
+  - [Local setup](#local-setup)
+    - [Bootstrap](#bootstrap)
+    - [Requirements](#requirements)
+    - [Build the s3gw backend image](#build-the-s3gw-backend-image)
+    - [Build the s3gw probe](#build-the-s3gw-probe)
+    - [Create the cluster](#create-the-cluster)
+    - [Delete the acceptance cluster](#delete-the-acceptance-cluster)
+    - [Deploy the s3gw-ha/s3gw on the cluster](#deploy-the-s3gw-has3gw-on-the-cluster)
+    - [Undeploy the s3gw-ha/s3gw from the cluster](#undeploy-the-s3gw-has3gw-from-the-cluster)
+    - [Deploy the s3gw-ha/s3gw-probe on the cluster](#deploy-the-s3gw-has3gw-probe-on-the-cluster)
+    - [Undeploy the s3gw-ha/s3gw-probe from the cluster](#undeploy-the-s3gw-has3gw-probe-from-the-cluster)
+    - [Probe examples](#probe-examples)
+  - [License](#license)
 
 The original demand for this work can be found in this
 [issue](https://github.com/aquarist-labs/s3gw/issues/361).
@@ -107,6 +118,25 @@ make probe-deploy
 ```shell
 make probe-undeploy
 ```
+
+### Probe examples
+
+You can trigger restarts for the `radosgw`'s POD with an `HTTP` call vs the probe
+as follow:
+
+- HTTP METHOD: `PUT`
+- URI: `/probe`
+
+Examples
+
+- 10 restarts, death by: `EXIT-0`: Query string: `restarts=10&how=exit0&mark=my-exit0-test`
+- 10 restarts, death by: `EXIT-1`: Query string: `restarts=10&how=exit1&mark=my-exit1-test`
+- 10 restarts, death by: `SEG-FAULT`: Query string: `restarts=10&how=segfault&mark=my-segfault-test`
+
+You ask for stats with an `HTTP` call vs the probe as follow:
+
+- HTTP METHOD: `GET`
+- URI: `/stats`
 
 ## License
 
