@@ -12,7 +12,7 @@
 
 set -e
 
-imageS3GW="quay.io/s3gw/s3gw"
+imageS3GW="ghcr.io/giubacc/s3gw"
 IMAGE_TAG=${IMAGE_TAG:-$(git describe --tags --always)}
 SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 

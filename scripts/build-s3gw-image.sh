@@ -14,7 +14,7 @@ set -e
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 IMAGE_TAG=${IMAGE_TAG:-"$(git describe --tags --always)"}
-imageS3GW="quay.io/s3gw/s3gw"
+imageS3GW="ghcr.io/giubacc/s3gw"
 
 echo "--- Building s3gw-builder image ---"
 docker build -t s3gw-builder:latest -f dockerfiles/Dockerfile.s3gw-builder .

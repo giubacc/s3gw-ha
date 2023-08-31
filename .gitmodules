@@ -2,3 +2,6 @@
 	path = ceph
 	url = https://github.com/giubacc/ceph
 	branch = ha-testing
+[submodule "vm/playbooks/k3s-ansible"]
+	path = vm/playbooks/k3s-ansible
+	url = https://github.com/k3s-io/k3s-ansible.git

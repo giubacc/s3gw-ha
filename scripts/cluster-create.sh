@@ -14,11 +14,9 @@ set -e
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 NETWORK_NAME=s3gw-ha
-MIRROR_NAME=s3gw-ha-registry-mirror
-REGISTRY_USERNAME=
-REGISTRY_PASSWORD=
 CLUSTER_NAME=s3gw-ha
 K3S_IMAGE=${K3S_IMAGE:-rancher/k3s:v1.25.10-k3s1}
+CLUSTER_NODES=${CLUSTER_NODES:-1}
 export KUBECONFIG=$SCRIPT_DIR/../tmp/ha-kubeconfig
 
 check_deps() {
@@ -41,47 +39,29 @@ fi
 echo "Ensuring a network"
 docker network create $NETWORK_NAME || echo "Network already exists"
 
-if [[ "$SHARED_REGISTRY_MIRROR" == "" ]]; then
-  echo "Ensuring registry mirror (even if it's stopped)"
-  existingMirror=$(docker ps -a --filter name=$MIRROR_NAME -q)
-  if [[ $existingMirror  == "" ]]; then
-    echo "No mirror found, creating one"
-    docker run -d --network $NETWORK_NAME --name $MIRROR_NAME \
-      -e REGISTRY_PROXY_REMOTEURL=https://registry-1.docker.io \
-      -e REGISTRY_PROXY_USERNAME="${REGISTRY_USERNAME}" \
-      -e REGISTRY_PROXY_PASSWORD="${REGISTRY_PASSWORD}" \
-      registry:2
-  else
-    docker start $MIRROR_NAME # In case it was stopped (we used "-a" when listing)
-  fi
-else
-  echo "Using local registry mirror"
-  MIRROR_NAME="$SHARED_REGISTRY_MIRROR"
-fi
-
-echo "Writing s3gw settings yaml"
-TMP_CONFIG="$(mktemp)"
-trap "rm -f $TMP_CONFIG" EXIT
-
-cat << EOF > $TMP_CONFIG
-mirrors:
-  "docker.io":
-    endpoint:
-      - http://$MIRROR_NAME:5000
-EOF
+#kind create cluster --name $CLUSTER_NAME --image $K3S_IMAGE
 
 echo "Creating a new one named $CLUSTER_NAME"
 if [ -z ${EXPOSE_CLUSTER_PORTS+x} ]; then
   # Without exposing ports on the host:
-  k3d cluster create $CLUSTER_NAME --network $NETWORK_NAME --registry-config $TMP_CONFIG --image "$K3S_IMAGE" $S3GW_K3D_INSTALL_ARGS
+  k3d cluster create $CLUSTER_NAME \
+    -v /dev/mapper:/dev/mapper \
+    --network $NETWORK_NAME \
+    --agents $CLUSTER_NODES \
+    --image "$K3S_IMAGE"
 else
   # Exposing ports on the host:
-  k3d cluster create $CLUSTER_NAME --network $NETWORK_NAME --registry-config $TMP_CONFIG --image "$K3S_IMAGE" -p '80:80@server:0' -p '443:443@server:0' $S3GW_K3D_INSTALL_ARGS
+  k3d cluster create $CLUSTER_NAME \
+    -v /dev/mapper:/dev/mapper \
+    --network $NETWORK_NAME \
+    --agents $CLUSTER_NODES \
+    --image "$K3S_IMAGE" \
+    -p '80:80@server:0' -p '443:443@server:0'
 fi
 k3d kubeconfig get $CLUSTER_NAME > $KUBECONFIG
 
 echo "Waiting for node to be ready"
-nodeName=$(kubectl get nodes -o name)
+nodeName=$(kubectl get nodes -o name | head -n 1)
 kubectl wait --for=condition=Ready "$nodeName"
 
 date

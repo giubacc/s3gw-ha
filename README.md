@@ -7,7 +7,7 @@
     - [Build the s3gw backend image](#build-the-s3gw-backend-image)
     - [Build the s3gw probe](#build-the-s3gw-probe)
     - [Create the cluster](#create-the-cluster)
-    - [Delete the acceptance cluster](#delete-the-acceptance-cluster)
+    - [Delete the cluster](#delete-the-cluster)
     - [Deploy the s3gw-ha/s3gw on the cluster](#deploy-the-s3gw-has3gw-on-the-cluster)
     - [Undeploy the s3gw-ha/s3gw from the cluster](#undeploy-the-s3gw-has3gw-from-the-cluster)
     - [Deploy the s3gw-ha/s3gw-probe on the cluster](#deploy-the-s3gw-has3gw-probe-on-the-cluster)
@@ -83,40 +83,40 @@ make probe-build
 You create the `k3d-s3gw-ha` cluster with:
 
 ```shell
-make cluster-start
+make k3d-cluster-start
 ```
 
 > **WARNING**: the command updates your `.kube/config` with the credentials of
 > the just created `k3d-s3gw-ha` cluster and sets its context as default.
 
-### Delete the acceptance cluster
+### Delete the cluster
 
 ```shell
-make cluster-delete
+make k3d-cluster-delete
 ```
 
 ### Deploy the s3gw-ha/s3gw on the cluster
 
 ```shell
-make s3gw-deploy
+make k3d-s3gw-deploy
 ```
 
 ### Undeploy the s3gw-ha/s3gw from the cluster
 
 ```shell
-make s3gw-undeploy
+make k3d-s3gw-undeploy
 ```
 
 ### Deploy the s3gw-ha/s3gw-probe on the cluster
 
 ```shell
-make probe-deploy
+make k3d-probe-deploy
 ```
 
 ### Undeploy the s3gw-ha/s3gw-probe from the cluster
 
 ```shell
-make probe-undeploy
+make k3d-probe-undeploy
 ```
 
 ### Probe examples

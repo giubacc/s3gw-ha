@@ -1,0 +1,13 @@
+- name: Deploy Longhorn
+  hosts: kubectl
+  tasks:
+
+    - name: Installing iscsi...
+      command: kubectl apply -f https://raw.githubusercontent.com/longhorn/longhorn/v1.5.1/deploy/prerequisite/longhorn-iscsi-installation.yaml
+
+    - name: Deploy Longhorn
+      command: "{{ item }}"
+      with_items:
+          - /bin/bash -c "helm repo add longhorn https://charts.longhorn.io"
+          - /bin/bash -c "helm repo update"
+          - /bin/bash -c "helm install longhorn longhorn/longhorn --namespace longhorn-system --create-namespace --version 1.5.1 --wait"

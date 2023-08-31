@@ -27,6 +27,9 @@ s3gw-cmake:
 s3gw-build:
 	@./scripts/build-s3gw-image.sh
 
+s3gw-push-image:
+	docker push ghcr.io/giubacc/s3gw:latest
+
 probe-build:
 	go build -o probe/bin/probe probe/main.go
 	docker build -t ghcr.io/giubacc/s3gw-probe:latest -f dockerfiles/Dockerfile.s3gw-probe .
@@ -35,32 +38,32 @@ probe-push-image:
 	docker push ghcr.io/giubacc/s3gw-probe:latest
 
 ########################################################################
-# cluster Create/Delete/Prepare
+# k3d cluster Create/Delete/Prepare
 
-cluster-start:
+k3d-cluster-start:
 	@./scripts/cluster-create.sh
 	k3d kubeconfig merge -ad
 	kubectl config use-context k3d-s3gw-ha
 	@./scripts/cluster-prepare.sh
 
-cluster-delete:
+k3d-cluster-delete:
 	k3d cluster delete s3gw-ha
 	@if test -f /usr/local/bin/rke2-uninstall.sh; then sudo sh /usr/local/bin/rke2-uninstall.sh; fi
 
 ########################################################################
-# s3gw Deploy/Undeploy
+# k3d s3gw Deploy/Undeploy
 
-s3gw-deploy:
+k3d-s3gw-deploy:
 	@./scripts/cluster-s3gw-deploy.sh
 
-s3gw-undeploy:
+k3d-s3gw-undeploy:
 	helm uninstall -n s3gw-ha s3gw
 
 ########################################################################
-# probe Deploy/Undeploy
+# k3d probe Deploy/Undeploy
 
-probe-deploy:
+k3d-probe-deploy:
 	@./scripts/cluster-probe-deploy.sh
 
-probe-undeploy:
+k3d-probe-undeploy:
 	helm uninstall -n s3gw-ha s3gw-probe

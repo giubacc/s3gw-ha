@@ -1,0 +1,84 @@
+- name: Install Packages - [ZYPPER]
+  hosts: zypper
+  become: true
+  tasks:
+
+    - name: Install packages
+      zypper:
+        name: "{{ packages }}"
+        state: present
+      vars:
+        packages:
+            - curl
+            - wget
+            - jq
+            - git
+            - docker
+            - python3-docker
+            - helm
+            - k9s
+            - open-iscsi
+
+- name: Patch Runtime
+  hosts: all
+  become: true
+  tasks:
+
+    - name: Patching docker/daemon.json
+      copy:
+        dest: "/etc/docker/daemon.json"
+        content: |
+            {
+            "exec-opts": ["native.cgroupdriver=systemd"]
+            }
+
+    - name: Add user to Docker group
+      user:
+        name: "{{ user }}"
+        group: docker
+
+    - name: Restart Docker
+      service:
+        name: docker
+        state: restarted
+        daemon_reload: yes
+
+    - name: Remove swapfile from /etc/fstab
+      mount:
+        name: "{{ item }}"
+        fstype: swap
+        state: absent
+      with_items:
+        - swap
+        - none
+
+    - name: Disable swap
+      command: swapoff -a
+
+- name: Local DNS
+  hosts: all
+  become: true
+  gather_facts: yes
+  tasks:
+
+    - name: Update /etc/hosts file with node name
+      tags: etchostsupdate
+      lineinfile:
+        path: "/etc/hosts"
+        regexp: ".*\t{{ hostvars[item]['ansible_fqdn']}}\t{{ hostvars[item]['ansible_hostname']}}"
+        line: "{{ hostvars[item]['ansible_eth1'].ipv4.address }}\t{{ hostvars[item]['ansible_fqdn']}}\t{{ hostvars[item]['ansible_hostname']}}"
+        state: present
+        backup: yes
+      register: etchostsupdate
+      with_items: "{{groups['all']}}"
+
+    - name: Patch /etc/hosts
+      lineinfile:
+        path: /etc/hosts
+        regexp: '^127\.0\.2\.1.*'
+        state: absent
+
+    - name: Add local names to /etc/hosts
+      lineinfile:
+        path: /etc/hosts
+        line: "127.0.0.1   longhorn.local s3gw.local"

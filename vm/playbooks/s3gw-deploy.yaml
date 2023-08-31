@@ -1,0 +1,35 @@
+- name: Deploy s3gw
+  hosts: kubectl
+  tasks:
+
+    - name: Helm cert-manager
+      command: "{{ item }}"
+      with_items:
+          - /bin/bash -c "helm repo add jetstack https://charts.jetstack.io"
+          - /bin/bash -c "helm repo update"
+          - /bin/bash -c "kubectl create namespace cert-manager"
+
+    - name: Install cert-manager
+      shell: |
+        helm install cert-manager --namespace cert-manager jetstack/cert-manager \
+          --set installCRDs=true \
+          --set extraArgs[0]=--enable-certificate-owner-ref=true \
+          --version 1.10 \
+          --wait
+
+    - name: Helm s3gw
+      command: "{{ item }}"
+      with_items:
+          - /bin/bash -c "helm repo add s3gw https://aquarist-labs.github.io/s3gw-charts/"
+          - /bin/bash -c "helm repo update"
+
+    - name: Install s3gw
+      shell: |
+        helm upgrade --wait --install -n s3gw-ha --create-namespace s3gw s3gw/s3gw \
+          --set imageRegistry={{ s3gw_registry }} \
+          --set imageName={{ s3gw_image }} \
+          --set imageTag={{ s3gw_tag }} \
+          --set publicDomain={{ S3GW_SYSTEM_DOMAIN }} \
+          --set ui.enabled=false \
+          --set storageClass.name=longhorn
+          --set rgwCustomArgs="{--probe-endpoint,http://s3gw-probe-s3gw-ha.s3gw-ha.svc.cluster.local:80}"

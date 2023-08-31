@@ -10,3 +10,4 @@ scenario.json
 properties.json
 ceph
 build.ccache
+.vagrant
