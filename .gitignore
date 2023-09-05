@@ -10,4 +10,7 @@ scenario.json
 properties.json
 ceph
 build.ccache
+build.ccache.local
 .vagrant
+venv
+wd/*

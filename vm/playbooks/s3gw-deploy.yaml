@@ -31,5 +31,16 @@
           --set imageTag={{ s3gw_tag }} \
           --set publicDomain={{ S3GW_SYSTEM_DOMAIN }} \
           --set ui.enabled=false \
-          --set storageClass.name=longhorn
+          --set storageClass.name=longhorn \
+          --set rgwCustomArgs="{--probe-endpoint,http://s3gw-probe-s3gw-ha.s3gw-ha.svc.cluster.local:80}"
+
+    - name: Install s3gw Probe
+      shell: |
+        helm upgrade --wait --install -n s3gw-ha --create-namespace s3gw s3gw/s3gw \
+          --set imageRegistry={{ s3gw_registry }} \
+          --set imageName={{ s3gw_image }} \
+          --set imageTag={{ s3gw_tag }} \
+          --set publicDomain={{ S3GW_SYSTEM_DOMAIN }} \
+          --set ui.enabled=false \
+          --set storageClass.name=longhorn \
           --set rgwCustomArgs="{--probe-endpoint,http://s3gw-probe-s3gw-ha.s3gw-ha.svc.cluster.local:80}"

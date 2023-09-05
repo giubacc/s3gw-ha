@@ -17,6 +17,7 @@ type Config struct {
 	VerbLevel                   uint
 	EndpointS3GW                string
 	WaitMSecsBeforeTriggerDeath uint //msec
+	CollectRestartAtEvent       string
 }
 
 type DeathEvent struct {
@@ -25,23 +26,30 @@ type DeathEvent struct {
 }
 
 type StartEvent struct {
-	Ts uint64 `json:"ts"` //timestamp of this event
+	Ts    uint64 `json:"ts"`    //timestamp of this event
+	Where string `json:"where"` //point where the radosgw sent the event
 }
 
 type RestartEvent struct {
-	Id    int
-	Death *DeathEvent
-	Start *StartEvent
+	Id              int
+	Death           *DeathEvent
+	StartMain       *StartEvent
+	StartFrontendUp *StartEvent
 }
 
 type RestartEntry struct {
-	Id              int    `json:"restart_id"`
-	RestartDuration uint64 `json:"duration"`
+	Id                          int    `json:"restart_id"`
+	RestartDurationToMain       uint64 `json:"duration_to_main"`
+	RestartDurationToFrontendUp uint64 `json:"duration_to_frontend_up"`
 }
 
 type SeriesEntry struct {
-	Mark      string         `json:"mark"`
-	EvtSeries []RestartEntry `json:"series"`
+	Mark        string         `json:"mark"`
+	Min2Main    uint64         `json:"min_to_main"`
+	Max2Main    uint64         `json:"max_to_main"`
+	Min2FrontUp uint64         `json:"min_to_front_up"`
+	Max2FrontUp uint64         `json:"max_to_front_up"`
+	EvtSeries   []RestartEntry `json:"series"`
 }
 
 type Stats struct {

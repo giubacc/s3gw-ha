@@ -21,11 +21,12 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/gin-gonic/gin"
+	"github.com/montanaflynn/stats"
 )
 
 type Probe struct {
-	CurrentDeath *DeathEvent
-	CurrentStart *StartEvent
+	CurrentDeath     *DeathEvent
+	CurrentStartList []*StartEvent
 
 	CurrentPendingRestarts uint
 	CurrentDeathType       string
@@ -44,30 +45,56 @@ func (p *Probe) submitDeath(evt *DeathEvent) {
 }
 
 func (p *Probe) submitStart(evt *StartEvent) {
-	if p.CurrentStart != nil || p.CurrentDeath == nil {
+	if p.CurrentDeath == nil {
 		Logger.Error("bad state for submitting a start event")
 		return
 	}
-	p.CurrentStart = evt
-	p.submitRestart()
-	if p.CurrentPendingRestarts > 0 {
-		time.Sleep(time.Duration(Cfg.WaitMSecsBeforeTriggerDeath) * time.Millisecond)
-		p.RequestDie()
-	} else {
-		p.CurrentId = 0
+	p.CurrentStartList = append(p.CurrentStartList, evt)
+
+	if evt.Where == Cfg.CollectRestartAtEvent {
+		p.submitRestart()
+		if p.CurrentPendingRestarts > 0 {
+			time.Sleep(time.Duration(Cfg.WaitMSecsBeforeTriggerDeath) * time.Millisecond)
+			p.RequestDie()
+		} else {
+			p.CurrentId = 0
+		}
 	}
+}
+
+func (p *Probe) findStartEvent(where string) *StartEvent {
+	for _, it := range p.CurrentStartList {
+		if it.Where == where {
+			return it
+		}
+	}
+	return nil
 }
 
 func (p *Probe) submitRestart() {
 	p.CurrentId = p.CurrentId + 1
-	p.RestartSet[p.CurrentMark] = append(p.RestartSet[p.CurrentMark], RestartEvent{Death: p.CurrentDeath, Start: p.CurrentStart, Id: p.CurrentId})
-	Logger.Infof("inserted restart event: mark:%s, death:%d, start:%d; collected events:%d", p.CurrentMark, p.CurrentDeath.Ts, p.CurrentStart.Ts, p.CurrentId)
+
+	p.RestartSet[p.CurrentMark] = append(p.RestartSet[p.CurrentMark],
+		RestartEvent{Death: p.CurrentDeath,
+			StartMain:       p.findStartEvent("main"),
+			StartFrontendUp: p.findStartEvent("frontend-up"),
+			Id:              p.CurrentId})
+
+	restartEvt := &p.RestartSet[p.CurrentMark][len(p.RestartSet[p.CurrentMark])-1]
+
+	Logger.Infof("inserted restart event: mark:%s, death:%d, start-main:%d, start-f-up:%d; collected events:%d",
+		p.CurrentMark,
+		p.CurrentDeath.Ts,
+		restartEvt.StartMain.Ts,
+		restartEvt.StartFrontendUp.Ts,
+		p.CurrentId)
+
 	if p.CurrentPendingRestarts > 0 {
 		p.CurrentPendingRestarts = p.CurrentPendingRestarts - 1
 	}
 	Logger.Infof("pending restarts: %d", p.CurrentPendingRestarts)
 	p.CurrentDeath = nil
-	p.CurrentStart = nil
+	p.CurrentStartList = nil
 }
 
 func (p *Probe) RequestDie() {
@@ -99,6 +126,7 @@ var Prb Probe
 func main() {
 	flag.StringVar(&Cfg.EndpointS3GW, "s3gw-endpoint", "http://localhost:7480", "Specify s3gw endpoint")
 	flag.UintVar(&Cfg.WaitMSecsBeforeTriggerDeath, "wbtd", 100, "Wait n milliseconds before trigger death")
+	flag.StringVar(&Cfg.CollectRestartAtEvent, "collectAt", "frontend-up", "The event where the probe should collect a restart event")
 	flag.StringVar(&Cfg.LogLevel, "v", "inf", "Specify logging verbosity [off, trc, inf, wrn, err]")
 	flag.UintVar(&Cfg.VerbLevel, "vl", 5, "Verbosity level")
 
@@ -133,8 +161,9 @@ func setDeath(c *gin.Context) {
 
 func setStart(c *gin.Context) {
 	ts := c.Query("ts")
+	where := c.Query("where")
 	if ts, err := strconv.ParseUint(ts, 0, 64); err == nil {
-		evt := StartEvent{Ts: ts}
+		evt := StartEvent{Ts: ts, Where: where}
 		Prb.submitStart(&evt)
 	} else {
 		Logger.Errorf("malformed StartEvent:%s", err.Error())
@@ -168,13 +197,49 @@ func getStats(c *gin.Context) {
 		timeUnit = StrSec
 	}
 
+	fullSeries := false
+	fullSeriesPar := c.Query("full_series")
+	if fullSeriesPar == "true" {
+		fullSeries = true
+	}
+
 	result := Stats{TimeUnit: timeUnit}
 	for mark, restartEvents := range Prb.RestartSet {
 		var evtSeries []RestartEntry
+		var evtSeriesMainData []float64
+		var evtSeriesFrontedUpData []float64
 		for _, evt := range restartEvents {
-			evtSeries = append(evtSeries, RestartEntry{Id: evt.Id, RestartDuration: (evt.Start.Ts - evt.Death.Ts) / StrTimeUnit2TimeUnit[timeUnit]})
+			evtSeries = append(evtSeries, RestartEntry{Id: evt.Id,
+				RestartDurationToMain:       (evt.StartMain.Ts - evt.Death.Ts) / StrTimeUnit2TimeUnit[timeUnit],
+				RestartDurationToFrontendUp: (evt.StartFrontendUp.Ts - evt.Death.Ts) / StrTimeUnit2TimeUnit[timeUnit]})
+
+			evtSeriesMainData = append(evtSeriesMainData, float64(evtSeries[len(evtSeries)-1].RestartDurationToMain))
+			evtSeriesFrontedUpData = append(evtSeriesFrontedUpData, float64(evtSeries[len(evtSeries)-1].RestartDurationToFrontendUp))
 		}
-		result.Entries = append(result.Entries, SeriesEntry{Mark: mark, EvtSeries: evtSeries})
+
+		result.Entries = append(result.Entries, SeriesEntry{Mark: mark})
+		lastSeries := &result.Entries[len(result.Entries)-1]
+
+		if min, err := stats.Min(evtSeriesMainData); err == nil {
+			lastSeries.Min2Main = uint64(min)
+		}
+
+		if max, err := stats.Max(evtSeriesMainData); err == nil {
+			lastSeries.Max2Main = uint64(max)
+		}
+
+		if min, err := stats.Min(evtSeriesFrontedUpData); err == nil {
+			lastSeries.Min2FrontUp = uint64(min)
+		}
+
+		if max, err := stats.Max(evtSeriesFrontedUpData); err == nil {
+			lastSeries.Max2FrontUp = uint64(max)
+		}
+
+		if fullSeries {
+			lastSeries.EvtSeries = evtSeries
+		}
+
 	}
 	c.JSON(http.StatusOK, result)
 }
