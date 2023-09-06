@@ -82,6 +82,13 @@ func (p *Probe) submitRestart() {
 
 	restartEvt := &p.RestartSet[p.CurrentMark][len(p.RestartSet[p.CurrentMark])-1]
 
+	if restartEvt.StartMain == nil {
+		restartEvt.StartMain = &StartEvent{Ts: restartEvt.Death.Ts}
+	}
+	if restartEvt.StartFrontendUp == nil {
+		restartEvt.StartFrontendUp = &StartEvent{Ts: restartEvt.Death.Ts}
+	}
+
 	Logger.Infof("inserted restart event: mark:%s, death:%d, start-main:%d, start-f-up:%d; collected events:%d",
 		p.CurrentMark,
 		p.CurrentDeath.Ts,
@@ -217,27 +224,51 @@ func getStats(c *gin.Context) {
 			evtSeriesFrontedUpData = append(evtSeriesFrontedUpData, float64(evtSeries[len(evtSeries)-1].RestartDurationToFrontendUp))
 		}
 
-		result.Entries = append(result.Entries, SeriesEntry{Mark: mark})
-		lastSeries := &result.Entries[len(result.Entries)-1]
+		result.Series = append(result.Series, SeriesEntry{Mark: mark})
+		lastSeries := &result.Series[len(result.Series)-1]
 
-		if min, err := stats.Min(evtSeriesMainData); err == nil {
-			lastSeries.Min2Main = uint64(min)
+		if val, err := stats.Min(evtSeriesMainData); err == nil {
+			lastSeries.MinMain = uint64(val)
 		}
 
-		if max, err := stats.Max(evtSeriesMainData); err == nil {
-			lastSeries.Max2Main = uint64(max)
+		if val, err := stats.Max(evtSeriesMainData); err == nil {
+			lastSeries.MaxMain = uint64(val)
 		}
 
-		if min, err := stats.Min(evtSeriesFrontedUpData); err == nil {
-			lastSeries.Min2FrontUp = uint64(min)
+		if val, err := stats.Mean(evtSeriesMainData); err == nil {
+			lastSeries.MeanMain = uint64(val)
 		}
 
-		if max, err := stats.Max(evtSeriesFrontedUpData); err == nil {
-			lastSeries.Max2FrontUp = uint64(max)
+		if val, err := stats.Percentile(evtSeriesMainData, 99); err == nil {
+			lastSeries.Perc99Main = uint64(val)
+		}
+
+		if val, err := stats.Percentile(evtSeriesMainData, 95); err == nil {
+			lastSeries.Perc95Main = uint64(val)
+		}
+
+		if val, err := stats.Min(evtSeriesFrontedUpData); err == nil {
+			lastSeries.MinFrontUp = uint64(val)
+		}
+
+		if val, err := stats.Max(evtSeriesFrontedUpData); err == nil {
+			lastSeries.MaxFrontUp = uint64(val)
+		}
+
+		if val, err := stats.Mean(evtSeriesFrontedUpData); err == nil {
+			lastSeries.MeanFrontUp = uint64(val)
+		}
+
+		if val, err := stats.Percentile(evtSeriesFrontedUpData, 99); err == nil {
+			lastSeries.Perc99FrontUp = uint64(val)
+		}
+
+		if val, err := stats.Percentile(evtSeriesFrontedUpData, 95); err == nil {
+			lastSeries.Perc95FrontUp = uint64(val)
 		}
 
 		if fullSeries {
-			lastSeries.EvtSeries = evtSeries
+			lastSeries.Data = evtSeries
 		}
 
 	}

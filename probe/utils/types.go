@@ -44,15 +44,22 @@ type RestartEntry struct {
 }
 
 type SeriesEntry struct {
-	Mark        string         `json:"mark"`
-	Min2Main    uint64         `json:"min_to_main"`
-	Max2Main    uint64         `json:"max_to_main"`
-	Min2FrontUp uint64         `json:"min_to_front_up"`
-	Max2FrontUp uint64         `json:"max_to_front_up"`
-	EvtSeries   []RestartEntry `json:"series"`
+	Mark          string         `json:"mark"`
+	MinMain       uint64         `json:"min_to_main"`
+	MaxMain       uint64         `json:"max_to_main"`
+	MeanMain      uint64         `json:"mean_to_main"`
+	Perc99Main    uint64         `json:"99%_to_main"`
+	Perc95Main    uint64         `json:"95%_to_main"`
+	MinFrontUp    uint64         `json:"min_to_frontend_up"`
+	MaxFrontUp    uint64         `json:"max_to_frontend_up"`
+	MeanFrontUp   uint64         `json:"mean_to_frontend_up"`
+	Perc99FrontUp uint64         `json:"99%_to_frontend_up"`
+	Perc95FrontUp uint64         `json:"95%_to_frontend_up"`
+	Data          []RestartEntry `json:"data"`
 }
 
 type Stats struct {
-	Entries  []SeriesEntry `json:"probes"`
-	TimeUnit string        `json:"time_unit"`
+	SeriesCount uint          `json:"series_count"`
+	Series      []SeriesEntry `json:"series"`
+	TimeUnit    string        `json:"time_unit"`
 }

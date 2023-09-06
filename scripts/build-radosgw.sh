@@ -17,6 +17,7 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 echo "--- Building radosgw ---"
 mkdir -p ${SCRIPT_DIR}/../build.ccache.local
 
+cd ${SCRIPT_DIR}/../ceph
 export CCACHE_DIR=${SCRIPT_DIR}/../build.ccache.local; cd build; ninja -j4 bin/radosgw
 
 echo "radosgw built ✔️"

@@ -107,3 +107,6 @@ local-probe-build:
 
 local-probe-run:
 	probe/bin/probe -s3gw-endpoint http://localhost:7480 -wbtd 300
+
+local-probe-fr-up-run:
+	probe/bin/probe -s3gw-endpoint http://localhost:7480 -wbtd 300 -collectAt frontend-up

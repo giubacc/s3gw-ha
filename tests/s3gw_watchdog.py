@@ -12,6 +12,8 @@ if __name__ == '__main__':
                           "--rgw-backend-store", "sfs",
                           "--debug-rgw", "5",
                           "--rgw_thread_pool_size", "512",
-                          "--probe-endpoint", "http://localhost:8080"],
+                          "--probe-endpoint", "http://localhost:8080",
+                          "--send-probe-evt-main", "true",
+                          "--send-probe-evt-frontend-up", "true"],
                           cwd="../wd")
     p.wait()
