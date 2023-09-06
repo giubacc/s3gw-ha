@@ -24,7 +24,12 @@ import (
 
 // logger
 var Logger *logrus.Logger
+
+// config
 var Cfg Config
+
+// probe
+var Prb Probe
 
 func EpochTime() time.Time { return time.Unix(0, 0) }
 
