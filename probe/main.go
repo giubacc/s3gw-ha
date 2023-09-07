@@ -16,6 +16,7 @@ import (
 	"net/http"
 	. "s3gw-ha/probe/utils"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -110,6 +111,8 @@ func plot(c *gin.Context) {
 		timeUnit = StrSec
 	}
 
-	GenerateRawDataPlot(Prb.CollectedRestartRelatedData, mark, timeUnit, mark)
+	genTS := strconv.Itoa(int(time.Now().Unix()))
 
+	GenerateRawDataPlot(Prb.CollectedRestartRelatedData, mark, timeUnit, mark, genTS)
+	GeneratePercentilesPlot(Prb.CollectedRestartRelatedData, mark, timeUnit, mark, genTS)
 }

@@ -190,6 +190,14 @@ func (p *Probe) ComputeStats(timeUnit string, dumpAllData bool) Stats {
 			lastSeries.Perc95Main = uint64(val)
 		}
 
+		if val, err := stats.PercentileNearestRank(evtSeriesMainData, 99); err == nil {
+			lastSeries.PercNR99Main = uint64(val)
+		}
+
+		if val, err := stats.PercentileNearestRank(evtSeriesMainData, 95); err == nil {
+			lastSeries.PercNR95Main = uint64(val)
+		}
+
 		if val, err := stats.Min(evtSeriesFrontedUpData); err == nil {
 			lastSeries.MinFrontUp = uint64(val)
 		}
@@ -208,6 +216,14 @@ func (p *Probe) ComputeStats(timeUnit string, dumpAllData bool) Stats {
 
 		if val, err := stats.Percentile(evtSeriesFrontedUpData, 95); err == nil {
 			lastSeries.Perc95FrontUp = uint64(val)
+		}
+
+		if val, err := stats.PercentileNearestRank(evtSeriesFrontedUpData, 99); err == nil {
+			lastSeries.PercNR99FrontUp = uint64(val)
+		}
+
+		if val, err := stats.PercentileNearestRank(evtSeriesFrontedUpData, 95); err == nil {
+			lastSeries.PercNR95FrontUp = uint64(val)
 		}
 
 		if dumpAllData {

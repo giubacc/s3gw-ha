@@ -14,3 +14,5 @@ build.ccache.local
 .vagrant
 venv
 wd/*
+regular_percentiles_*.png
+regular_raw_*.png
