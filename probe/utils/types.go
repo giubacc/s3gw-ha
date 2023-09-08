@@ -44,25 +44,33 @@ type RestartEntry struct {
 	Id                          int    `json:"restart_id"`
 	RestartDurationToMain       uint64 `json:"duration_to_main"`
 	RestartDurationToFrontendUp uint64 `json:"duration_to_frontend_up"`
+	FUpMainDelta                uint64 `json:"frontend_up_main_delta"`
 }
 
 type SeriesEntry struct {
-	Mark            string         `json:"mark"`
-	MinMain         uint64         `json:"min_to_main"`
-	MaxMain         uint64         `json:"max_to_main"`
-	MeanMain        uint64         `json:"mean_to_main"`
-	Perc99Main      uint64         `json:"99p_to_main"`
-	Perc95Main      uint64         `json:"95p_to_main"`
-	PercNR99Main    uint64         `json:"99pNR_to_main"`
-	PercNR95Main    uint64         `json:"95pNR_to_main"`
-	MinFrontUp      uint64         `json:"min_to_frontend_up"`
-	MaxFrontUp      uint64         `json:"max_to_frontend_up"`
-	MeanFrontUp     uint64         `json:"mean_to_frontend_up"`
-	Perc99FrontUp   uint64         `json:"99p_to_frontend_up"`
-	Perc95FrontUp   uint64         `json:"95p_to_frontend_up"`
-	PercNR99FrontUp uint64         `json:"99pNR_to_frontend_up"`
-	PercNR95FrontUp uint64         `json:"95pNR_to_frontend_up"`
-	Data            []RestartEntry `json:"data"`
+	Mark             string         `json:"mark"`
+	MinMain          uint64         `json:"min_to_main"`
+	MaxMain          uint64         `json:"max_to_main"`
+	MeanMain         uint64         `json:"mean_to_main"`
+	Perc99Main       uint64         `json:"99p_to_main"`
+	Perc95Main       uint64         `json:"95p_to_main"`
+	PercNR99Main     uint64         `json:"99pNR_to_main"`
+	PercNR95Main     uint64         `json:"95pNR_to_main"`
+	MinFrontUp       uint64         `json:"min_to_frontend_up"`
+	MaxFrontUp       uint64         `json:"max_to_frontend_up"`
+	MeanFrontUp      uint64         `json:"mean_to_frontend_up"`
+	Perc99FrontUp    uint64         `json:"99p_to_frontend_up"`
+	Perc95FrontUp    uint64         `json:"95p_to_frontend_up"`
+	PercNR99FrontUp  uint64         `json:"99pNR_to_frontend_up"`
+	PercNR95FrontUp  uint64         `json:"95pNR_to_frontend_up"`
+	MinFUpMainD      uint64         `json:"min_frontend_up_main_delta"`
+	MaxFUpMainD      uint64         `json:"max_frontend_up_main_delta"`
+	MeanFUpMainD     uint64         `json:"mean_frontend_up_main_delta"`
+	Perc99FUpMainD   uint64         `json:"99p_frontend_up_main_delta"`
+	Perc95FUpMainD   uint64         `json:"95p_frontend_up_main_delta"`
+	PercNR99FUpMainD uint64         `json:"99pNR_frontend_up_main_delta"`
+	PercNR95FUpMainD uint64         `json:"95pNR_frontend_up_main_delta"`
+	Data             []RestartEntry `json:"data"`
 }
 
 type Stats struct {

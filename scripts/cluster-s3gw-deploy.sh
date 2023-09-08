@@ -26,16 +26,45 @@ echo "using s3gw image-tag    : $IMAGE_TAG"
 k3d image import -c s3gw-ha "${imageS3GW}:v${IMAGE_TAG}"
 echo "Importing s3gw image Completed ✔️"
 
-function deploy_s3gw_latest_released {
-  helm upgrade --wait --install -n s3gw-ha --create-namespace s3gw s3gw/s3gw  \
+function deploy_s3gw_sd_latest_released {
+  helm upgrade --wait --install -n s3gw-sd --create-namespace s3gw-sd s3gw/s3gw  \
     --set publicDomain="$S3GW_SYSTEM_DOMAIN" \
     --set ui.publicDomain="$S3GW_SYSTEM_DOMAIN" \
-    --set imageTag=v"${IMAGE_TAG}" \
-    --set rgwCustomArgs="{--probe-endpoint,http://s3gw-probe-s3gw-ha.s3gw-ha.svc.cluster.local:80}"
+    --set rgwCustomArgs="{--rgw_relaxed_region_enforcement, 1, --send-probe-evt-main, false, --send-probe-evt-frontend-up, false}"
 }
 
-echo "Deploying s3gw"
-deploy_s3gw_latest_released
+function deploy_s3gw_ha_latest_released {
+  helm upgrade --wait --install -n s3gw-ha --create-namespace s3gw-ha s3gw/s3gw  \
+    --set publicDomain="$S3GW_SYSTEM_DOMAIN" \
+    --set ui.enabled=false \
+    --set imageRegistry=ghcr.io/giubacc \
+    --set imageName=s3gw \
+    --set imageTag=v"${IMAGE_TAG}" \
+    --set rgwCustomArgs="{--probe-endpoint,http://s3gw-probe-s3gw-sd.s3gw-sd.svc.cluster.local:80}"
+}
+
+echo "Deploying s3gw-ha/s3gw-ha"
+deploy_s3gw_ha_latest_released
 
 echo
-echo "Done deploying s3gw! ✔️"
+echo "Done deploying s3gw-ha/s3gw-ha! ✔️"
+
+echo "Deploying s3gw-sd/s3gw-sd"
+deploy_s3gw_sd_latest_released
+
+echo
+echo "Done deploying s3gw-sd/s3gw-sd! ✔️"
+
+k3d image import -c s3gw-ha ghcr.io/giubacc/s3gw-probe:latest
+echo "Importing s3gw-probe image Completed ✔️"
+
+function deploy_s3gw_probe {
+  helm upgrade --wait --install -n s3gw-sd --create-namespace s3gw-probe charts/s3gw-probe \
+    --set backend.publicDomain="$S3GW_SYSTEM_DOMAIN"
+}
+
+echo "Deploying s3gw-probe"
+deploy_s3gw_probe
+
+echo
+echo "Done deploying s3gw-probe! ✔️"

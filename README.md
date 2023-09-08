@@ -8,10 +8,8 @@
     - [Build the s3gw probe](#build-the-s3gw-probe)
     - [Create the cluster](#create-the-cluster)
     - [Delete the cluster](#delete-the-cluster)
-    - [Deploy the s3gw-ha/s3gw on the cluster](#deploy-the-s3gw-has3gw-on-the-cluster)
-    - [Undeploy the s3gw-ha/s3gw from the cluster](#undeploy-the-s3gw-has3gw-from-the-cluster)
-    - [Deploy the s3gw-ha/s3gw-probe on the cluster](#deploy-the-s3gw-has3gw-probe-on-the-cluster)
-    - [Undeploy the s3gw-ha/s3gw-probe from the cluster](#undeploy-the-s3gw-has3gw-probe-from-the-cluster)
+    - [Deploy the s3gw and the testing tools on the cluster](#deploy-the-s3gw-and-the-testing-tools-on-the-cluster)
+    - [Undeploy the s3gw and the testing tools from the cluster](#undeploy-the-s3gw-and-the-testing-tools-from-the-cluster)
     - [Probe examples](#probe-examples)
   - [License](#license)
 
@@ -83,7 +81,7 @@ make probe-build
 You create the `k3d-s3gw-ha` cluster with:
 
 ```shell
-make k3d-cluster-start
+make k3d-start
 ```
 
 > **WARNING**: the command updates your `.kube/config` with the credentials of
@@ -92,31 +90,19 @@ make k3d-cluster-start
 ### Delete the cluster
 
 ```shell
-make k3d-cluster-delete
+make k3d-delete
 ```
 
-### Deploy the s3gw-ha/s3gw on the cluster
+### Deploy the s3gw and the testing tools on the cluster
 
 ```shell
-make k3d-s3gw-deploy
+make k3d-deploy
 ```
 
-### Undeploy the s3gw-ha/s3gw from the cluster
+### Undeploy the s3gw and the testing tools from the cluster
 
 ```shell
-make k3d-s3gw-undeploy
-```
-
-### Deploy the s3gw-ha/s3gw-probe on the cluster
-
-```shell
-make k3d-probe-deploy
-```
-
-### Undeploy the s3gw-ha/s3gw-probe from the cluster
-
-```shell
-make k3d-probe-undeploy
+make k3d-undeploy
 ```
 
 ### Probe examples
@@ -125,7 +111,7 @@ You can trigger restarts for the `radosgw`'s POD with an `HTTP` call vs the prob
 as follow:
 
 - HTTP METHOD: `PUT`
-- URI: `/probe`
+- URI: `/trigger`
 
 Examples
 

@@ -10,7 +10,8 @@ backend:
   imageRegistry:
   imagePullPolicy:
 s3gw:
-  endpoint: http://s3gw-s3gw-ha.s3gw-ha.svc.cluster.local
+  endpoint: http://s3gw-ha-s3gw-ha.s3gw-ha.svc.cluster.local
   accessKey: test
   secretKey: test
   waitMSecsBeforeTriggerDeath: "2000"
+  saveDataEndpoint: "http://s3gw-sd-s3gw-sd.s3gw-sd.svc.cluster.local"

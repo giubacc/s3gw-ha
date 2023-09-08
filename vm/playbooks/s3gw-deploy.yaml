@@ -23,24 +23,28 @@
           - /bin/bash -c "helm repo add s3gw https://aquarist-labs.github.io/s3gw-charts/"
           - /bin/bash -c "helm repo update"
 
-    - name: Install s3gw
+    - name: Install s3gw-ha
       shell: |
-        helm upgrade --wait --install -n s3gw-ha --create-namespace s3gw s3gw/s3gw \
+        helm upgrade --wait --install -n s3gw-ha --create-namespace s3gw-ha s3gw/s3gw \
           --set imageRegistry={{ s3gw_registry }} \
           --set imageName={{ s3gw_image }} \
           --set imageTag={{ s3gw_tag }} \
           --set publicDomain={{ S3GW_SYSTEM_DOMAIN }} \
           --set ui.enabled=false \
           --set storageClass.name=longhorn \
-          --set rgwCustomArgs="{--probe-endpoint,http://s3gw-probe-s3gw-ha.s3gw-ha.svc.cluster.local:80}"
+          --set rgwCustomArgs="{--probe-endpoint,http://s3gw-probe-s3gw-sd.s3gw-sd.svc.cluster.local:80}"
 
-    - name: Install s3gw Probe
+    - name: Install s3gw-sd
       shell: |
-        helm upgrade --wait --install -n s3gw-ha --create-namespace s3gw s3gw/s3gw \
-          --set imageRegistry={{ s3gw_registry }} \
-          --set imageName={{ s3gw_image }} \
-          --set imageTag={{ s3gw_tag }} \
+        helm upgrade --wait --install -n s3gw-sd --create-namespace s3gw-sd s3gw/s3gw \
           --set publicDomain={{ S3GW_SYSTEM_DOMAIN }} \
-          --set ui.enabled=false \
+          --set ui.publicDomain={{ S3GW_SYSTEM_DOMAIN }} \
           --set storageClass.name=longhorn \
-          --set rgwCustomArgs="{--probe-endpoint,http://s3gw-probe-s3gw-ha.s3gw-ha.svc.cluster.local:80}"
+          --set rgwCustomArgs="{--rgw_relaxed_region_enforcement, 1, --send-probe-evt-main, false, --send-probe-evt-frontend-up, false}"
+
+    - name: Install s3gw-probe
+      shell: |
+        git clone https://github.com/giubacc/s3gw-ha-research.git
+        cd s3gw-ha-research
+        helm upgrade --wait --install -n s3gw-sd --create-namespace s3gw-probe charts/s3gw-probe \
+          --set backend.publicDomain={{ S3GW_SYSTEM_DOMAIN }}

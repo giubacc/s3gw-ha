@@ -42,14 +42,10 @@ func SendObject(client *s3.S3, bucketName string, fileName string) error {
 	return nil
 }
 
-func SendStatsArtifactsToS3(client *s3.S3, bucketName string, mark string, genTS string) {
-	fNameStats := mark + "_stats_" + genTS + ".json"
-	fNameRawChart := mark + "_raw_" + genTS + ".png"
-	fNamePercChart := mark + "_percentiles_" + genTS + ".png"
-
-	SendObject(client, bucketName, fNameStats)
-	SendObject(client, bucketName, fNameRawChart)
-	SendObject(client, bucketName, fNamePercChart)
+func SendStatsArtifactsToS3(client *s3.S3, bucketName string, fNames []string) {
+	for _, fName := range fNames {
+		SendObject(client, bucketName, fName)
+	}
 }
 
 func InitS3Client() *s3.S3 {

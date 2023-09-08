@@ -27,6 +27,10 @@ spec:
             - {{ .Values.s3gw.endpoint }}
             - "-wbtd"
             - '{{ .Values.s3gw.waitMSecsBeforeTriggerDeath }}'
+            - "-save-data-endpoint"
+            - {{ .Values.s3gw.saveDataEndpoint }}
+            - "-save-data-path-style"
+            - "false"
 {{- range $.Values.backend.customArgs }}
             - {{ . | quote}}
 {{- end }}

@@ -15,6 +15,12 @@ build.ccache.local
 venv
 wd/*
 wd_sd/*
-regular_percentiles_*.png
-regular_raw_*.png
+regular_percentiles_*.svg
+regular_raw_*.svg
 regular_stats_*.json
+unsolicited_percentiles_*.svg
+unsolicited_raw_*.svg
+unsolicited_stats_*.json
+all_percentiles_*.svg
+all_raw_*.svg
+all_stats_*.json

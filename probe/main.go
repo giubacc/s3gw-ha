@@ -51,8 +51,9 @@ func main() {
 
 	router.PUT("/death", setDeath)
 	router.PUT("/start", setStart)
-	router.GET("/stats", getStats)
+	router.GET("/stats", computeStats)
 	router.PUT("/trigger", trigger)
+	router.POST("/clear", clear)
 
 	Logger.Info("start listening and serving ...")
 	router.Run() // listen and serve on 0.0.0.0:8080
@@ -82,7 +83,7 @@ func setStart(c *gin.Context) {
 	}
 }
 
-func getStats(c *gin.Context) {
+func computeStats(c *gin.Context) {
 	mark := c.Query("mark")
 	if mark == "" {
 		mark = "all"
@@ -99,11 +100,10 @@ func getStats(c *gin.Context) {
 	}
 
 	genTS := strconv.Itoa(int(time.Now().Unix()))
-	stats := Prb.ComputeStats(timeUnit, dumpAllData)
+	stats := Prb.ComputeStats(mark, timeUnit, dumpAllData)
 
-	SaveStats(mark, genTS, stats)
-	GenerateRawDataPlot(Prb.CollectedRestartRelatedData, mark, timeUnit, mark, genTS)
-	GeneratePercentilesPlot(Prb.CollectedRestartRelatedData, mark, timeUnit, mark, genTS)
+	fNames := Prb.Render(genTS, timeUnit, stats)
+	SendStatsArtifactsToS3(S3Client, Cfg.SaveDataBucket, fNames)
 
 	c.JSON(http.StatusOK, stats)
 }
@@ -120,4 +120,8 @@ func trigger(c *gin.Context) {
 	Prb.CurrentMark = c.Query("mark")
 
 	Prb.RequestDie()
+}
+
+func clear(c *gin.Context) {
+	Prb.Clear()
 }

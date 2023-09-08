@@ -44,33 +44,26 @@ probe-push-image:
 ########################################################################
 # k3d cluster
 
-k3d-cluster-start:
+k3d-start:
 	@./scripts/cluster-create.sh
 	k3d kubeconfig merge -ad
 	kubectl config use-context k3d-s3gw-ha
 	@./scripts/cluster-prepare.sh
 
-k3d-cluster-delete:
+k3d-delete:
 	k3d cluster delete s3gw-ha
 	@if test -f /usr/local/bin/rke2-uninstall.sh; then sudo sh /usr/local/bin/rke2-uninstall.sh; fi
 
 ########################################################################
 # k3d s3gw Deploy/Undeploy
 
-k3d-s3gw-deploy:
+k3d-deploy:
 	@./scripts/cluster-s3gw-deploy.sh
 
-k3d-s3gw-undeploy:
-	helm uninstall -n s3gw-ha s3gw
-
-########################################################################
-# k3d probe Deploy/Undeploy
-
-k3d-probe-deploy:
-	@./scripts/cluster-probe-deploy.sh
-
-k3d-probe-undeploy:
-	helm uninstall -n s3gw-ha s3gw-probe
+k3d-undeploy:
+	helm uninstall -n s3gw-ha s3gw-ha
+	helm uninstall -n s3gw-sd s3gw-sd
+	helm uninstall -n s3gw-sd s3gw-probe
 
 ########################################################################
 # local tests

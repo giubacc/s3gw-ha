@@ -57,6 +57,16 @@ type Probe struct {
 	CollectedRestartRelatedData RestartRelatedData
 }
 
+func (p *Probe) Clear() {
+	p.CurrentPendingRestarts = 0
+	p.CurrentDeathType = ""
+	p.CurrentMark = ""
+	p.CurrentId = 0
+	for k := range p.CollectedRestartRelatedData {
+		delete(p.CollectedRestartRelatedData, k)
+	}
+}
+
 func (p *Probe) SubmitDeath(evt *DeathEvent) {
 	if p.CurrentDeath != nil {
 		Logger.Error("bad state for submitting a death event")
@@ -78,17 +88,35 @@ func (p *Probe) SubmitStart(evt *StartEvent) {
 			time.Sleep(time.Duration(Cfg.WaitMSecsBeforeTriggerDeath) * time.Millisecond)
 			p.RequestDie()
 		} else {
+
+			if p.CurrentMark == "unsolicited" {
+				return
+			}
+
 			timeUnit := "ms"
 			genTS := strconv.Itoa(int(time.Now().Unix()))
-			stats := p.ComputeStats(timeUnit, true)
+			stats := p.ComputeStats(p.CurrentMark, timeUnit, true)
 
-			SaveStats(p.CurrentMark, genTS, stats)
-			GenerateRawDataPlot(Prb.CollectedRestartRelatedData, p.CurrentMark, timeUnit, p.CurrentMark, genTS)
-			GeneratePercentilesPlot(Prb.CollectedRestartRelatedData, p.CurrentMark, timeUnit, p.CurrentMark, genTS)
-			SendStatsArtifactsToS3(S3Client, Cfg.SaveDataBucket, p.CurrentMark, genTS)
+			SendStatsArtifactsToS3(S3Client, Cfg.SaveDataBucket, p.Render(genTS, timeUnit, stats))
+
+			p.CurrentPendingRestarts = 0
+			p.CurrentDeathType = ""
+			p.CurrentMark = ""
 			p.CurrentId = 0
 		}
 	}
+}
+
+func (p *Probe) Render(genTS string, timeUnit string, stats Stats) []string {
+	fNames := []string{}
+
+	fStat, _ := SaveStats(p.CurrentMark, genTS, stats)
+	fRaw, _ := GenerateRawDataPlot(Prb.CollectedRestartRelatedData, p.CurrentMark, timeUnit, p.CurrentMark, genTS)
+	fP1, fP2, fP3, _ := GeneratePercentilesPlot(Prb.CollectedRestartRelatedData, p.CurrentMark, timeUnit, p.CurrentMark, genTS)
+
+	fNames = append(fNames, fStat, fRaw, fP1, fP2, fP3)
+
+	return fNames
 }
 
 func (p *Probe) findStartEvent(where string) *StartEvent {
@@ -101,6 +129,10 @@ func (p *Probe) findStartEvent(where string) *StartEvent {
 }
 
 func (p *Probe) submitRestart() {
+	if p.CurrentMark == "" {
+		p.CurrentMark = "unsolicited"
+	}
+
 	p.CurrentId = p.CurrentId + 1
 
 	p.CollectedRestartRelatedData[p.CurrentMark] = append(p.CollectedRestartRelatedData[p.CurrentMark],
@@ -158,26 +190,36 @@ func (p *Probe) RequestDie() {
 	}
 }
 
-func GetSplitDataForSingleRestartRelatedData(restartEvents []RestartEvent, timeUnit uint64) ([]RestartEntry, []float64, []float64) {
+func GetSplitDataForSingleRestartRelatedData(restartEvents []RestartEvent, timeUnit uint64) ([]RestartEntry, []float64, []float64, []float64) {
 	var evtSeries []RestartEntry
 	var evtSeriesMainData []float64
 	var evtSeriesFrontedUpData []float64
+	var evtSeriesFUpMainDelta []float64
 	for _, evt := range restartEvents {
 		evtSeries = append(evtSeries, RestartEntry{Id: evt.Id,
 			RestartDurationToMain:       (evt.StartMain.Ts - evt.Death.Ts) / timeUnit,
-			RestartDurationToFrontendUp: (evt.StartFrontendUp.Ts - evt.Death.Ts) / timeUnit})
+			RestartDurationToFrontendUp: (evt.StartFrontendUp.Ts - evt.Death.Ts) / timeUnit,
+			FUpMainDelta:                (evt.StartFrontendUp.Ts - evt.StartMain.Ts) / timeUnit})
 
 		evtSeriesMainData = append(evtSeriesMainData, float64(evtSeries[len(evtSeries)-1].RestartDurationToMain))
 		evtSeriesFrontedUpData = append(evtSeriesFrontedUpData, float64(evtSeries[len(evtSeries)-1].RestartDurationToFrontendUp))
+		evtSeriesFUpMainDelta = append(evtSeriesFUpMainDelta, float64(evtSeries[len(evtSeries)-1].FUpMainDelta))
 	}
-	return evtSeries, evtSeriesMainData, evtSeriesFrontedUpData
+	return evtSeries, evtSeriesMainData, evtSeriesFrontedUpData, evtSeriesFUpMainDelta
 }
 
-func (p *Probe) ComputeStats(timeUnit string, dumpAllData bool) Stats {
+func (p *Probe) ComputeStats(markPar string, timeUnit string, dumpAllData bool) Stats {
 	result := Stats{TimeUnit: timeUnit}
 	for mark, restartEvents := range Prb.CollectedRestartRelatedData {
 
-		evtSeries, evtSeriesMainData, evtSeriesFrontedUpData := GetSplitDataForSingleRestartRelatedData(restartEvents, StrTimeUnit2TimeUnit[timeUnit])
+		if markPar != "all" && markPar != mark {
+			continue
+		}
+
+		evtSeries,
+			evtSeriesMainData,
+			evtSeriesFrontedUpData,
+			evtSeriesFUpMainDelta := GetSplitDataForSingleRestartRelatedData(restartEvents, StrTimeUnit2TimeUnit[timeUnit])
 
 		result.Series = append(result.Series, SeriesEntry{Mark: mark})
 		lastSeries := &result.Series[len(result.Series)-1]
@@ -238,6 +280,34 @@ func (p *Probe) ComputeStats(timeUnit string, dumpAllData bool) Stats {
 			lastSeries.PercNR95FrontUp = uint64(val)
 		}
 
+		if val, err := stats.Min(evtSeriesFUpMainDelta); err == nil {
+			lastSeries.MinFUpMainD = uint64(val)
+		}
+
+		if val, err := stats.Max(evtSeriesFUpMainDelta); err == nil {
+			lastSeries.MaxFUpMainD = uint64(val)
+		}
+
+		if val, err := stats.Mean(evtSeriesFUpMainDelta); err == nil {
+			lastSeries.MeanFUpMainD = uint64(val)
+		}
+
+		if val, err := stats.Percentile(evtSeriesFUpMainDelta, 99); err == nil {
+			lastSeries.Perc99FUpMainD = uint64(val)
+		}
+
+		if val, err := stats.Percentile(evtSeriesFUpMainDelta, 95); err == nil {
+			lastSeries.Perc95FUpMainD = uint64(val)
+		}
+
+		if val, err := stats.PercentileNearestRank(evtSeriesFUpMainDelta, 99); err == nil {
+			lastSeries.PercNR99FUpMainD = uint64(val)
+		}
+
+		if val, err := stats.PercentileNearestRank(evtSeriesFUpMainDelta, 95); err == nil {
+			lastSeries.PercNR95FUpMainD = uint64(val)
+		}
+
 		if dumpAllData {
 			lastSeries.Data = evtSeries
 		}
@@ -245,13 +315,16 @@ func (p *Probe) ComputeStats(timeUnit string, dumpAllData bool) Stats {
 	return result
 }
 
-func SaveStats(mark string, genTS string, stats Stats) {
+func SaveStats(mark string, genTS string, stats Stats) (string, error) {
 	if resultFile, err := json.MarshalIndent(stats, "", " "); err != nil {
 		Logger.Errorf("json.MarshalIndent:%s", err.Error())
+		return "", err
 	} else {
 		fName := mark + "_stats_" + genTS + ".json"
 		if err := os.WriteFile(fName, resultFile, 0644); err != nil {
 			Logger.Errorf("os.WriteFile:%s", err.Error())
+			return "", err
 		}
+		return fName, nil
 	}
 }

@@ -36,7 +36,10 @@ func GenerateRawDataPlot(data RestartRelatedData,
 		p.X.Label.Text = "Restart ID"
 		p.Y.Label.Text = "Duration: " + timeUnit
 
-		_, evtSeriesMainData, evtSeriesFrontedUpData := GetSplitDataForSingleRestartRelatedData(restartEvents, StrTimeUnit2TimeUnit[timeUnit])
+		_,
+			evtSeriesMainData,
+			evtSeriesFrontedUpData,
+			evtSeriesFUpMainDelta := GetSplitDataForSingleRestartRelatedData(restartEvents, StrTimeUnit2TimeUnit[timeUnit])
 
 		//main
 
@@ -82,7 +85,29 @@ func GenerateRawDataPlot(data RestartRelatedData,
 			p.Legend.Add("to-fronted-up", lpLineFUp, lpPointsFUp)
 		}
 
-		fName := fileName + "_" + "raw" + "_" + genTS + ".png"
+		//delta
+
+		{
+			fUpMainDeltaPts := make(plotter.XYs, len(restartEvents))
+			for i := range fUpMainDeltaPts {
+				fUpMainDeltaPts[i].X = float64(i)
+				fUpMainDeltaPts[i].Y = evtSeriesFUpMainDelta[i]
+			}
+
+			lpLineFUpD, lpPointsFUpD, err := plotter.NewLinePoints(fUpMainDeltaPts)
+			if err != nil {
+				Logger.Error("GeneratePlot-fronted-up-main-delta: NewLinePoints", err.Error())
+				return "", err
+			}
+			lpLineFUpD.Color = plotutil.Color(2)
+			lpPointsFUpD.Shape = draw.PyramidGlyph{}
+			lpPointsFUpD.Color = plotutil.Color(2)
+
+			p.Add(lpLineFUpD, lpPointsFUpD)
+			p.Legend.Add("fronted-up-main-delta", lpLineFUpD, lpPointsFUpD)
+		}
+
+		fName := fileName + "_" + "raw" + "_" + genTS + ".svg"
 
 		if err := p.Save(30*vg.Centimeter, 20*vg.Centimeter, fName); err != nil {
 			Logger.Error("GeneratePlot: Saving plot:", fName)
@@ -101,76 +126,131 @@ func GeneratePercentilesPlot(data RestartRelatedData,
 	mark string,
 	timeUnit string,
 	fileName string,
-	genTS string) (string, error) {
+	genTS string) (string, string, string, error) {
 	if restartEvents, hit := data[mark]; hit {
-		p := plot.New()
-		p.Add(plotter.NewGrid())
-
-		p.Title.Text = "Percentiles (Nearest Rank): " + mark
-		p.X.Label.Text = "Percentile"
-		p.Y.Label.Text = "Duration: " + timeUnit
-
-		_, evtSeriesMainData, evtSeriesFrontedUpData := GetSplitDataForSingleRestartRelatedData(restartEvents, StrTimeUnit2TimeUnit[timeUnit])
+		_,
+			evtSeriesMainData,
+			evtSeriesFrontedUpData,
+			evtSeriesFUpMainDelta := GetSplitDataForSingleRestartRelatedData(restartEvents, StrTimeUnit2TimeUnit[timeUnit])
 
 		//main
 
+		fNameMain := fileName + "_percentiles_to_main_" + genTS + ".svg"
+
 		{
-			mainPercPts := make(plotter.XYs, 100)
+			p := plot.New()
+			p.Add(plotter.NewGrid())
+
+			p.Title.Text = "Percentiles - Main (Nearest Rank): " + mark
+			p.X.Label.Text = "Percentile"
+			p.Y.Label.Text = "Duration: " + timeUnit
+
+			pts := make(plotter.XYs, 100)
 			for i := 1; i <= 100; i++ {
 				if val, err := stats.PercentileNearestRank(evtSeriesMainData, float64(i)); err == nil {
-					mainPercPts[i-1].X = float64(i)
-					mainPercPts[i-1].Y = val
+					pts[i-1].X = float64(i)
+					pts[i-1].Y = val
 				}
 			}
 
-			lpLineMain, lpPointsMain, err := plotter.NewLinePoints(mainPercPts)
+			lpLine, lpPoints, err := plotter.NewLinePoints(pts)
 			if err != nil {
 				Logger.Error("GeneratePercentilesPlot-to-main: NewLinePoints", err.Error())
-				return "", err
+				return "", "", "", err
 			}
-			lpLineMain.Color = plotutil.Color(0)
-			lpPointsMain.Shape = draw.PyramidGlyph{}
-			lpPointsMain.Color = plotutil.Color(0)
+			lpLine.Color = plotutil.Color(0)
+			lpPoints.Shape = draw.PyramidGlyph{}
+			lpPoints.Color = plotutil.Color(0)
 
-			p.Add(lpLineMain, lpPointsMain)
-			p.Legend.Add("to-main", lpLineMain, lpPointsMain)
+			p.Add(lpLine, lpPoints)
+			p.Legend.Add("to-main", lpLine, lpPoints)
+
+			if err := p.Save(30*vg.Centimeter, 20*vg.Centimeter, fNameMain); err != nil {
+				Logger.Error("GeneratePlot: Saving plot:", fNameMain)
+				return "", "", "", err
+			}
 		}
 
 		//fronted-up
 
+		fNameFUp := fileName + "_percentiles_to_fup_" + genTS + ".svg"
+
 		{
-			fUPPercPts := make(plotter.XYs, 100)
+			p := plot.New()
+			p.Add(plotter.NewGrid())
+
+			p.Title.Text = "Percentiles - FrontEndUp (Nearest Rank): " + mark
+			p.X.Label.Text = "Percentile"
+			p.Y.Label.Text = "Duration: " + timeUnit
+
+			pts := make(plotter.XYs, 100)
 			for i := 1; i <= 100; i++ {
 				if val, err := stats.PercentileNearestRank(evtSeriesFrontedUpData, float64(i)); err == nil {
-					fUPPercPts[i-1].X = float64(i)
-					fUPPercPts[i-1].Y = val
+					pts[i-1].X = float64(i)
+					pts[i-1].Y = val
 				}
 			}
 
-			lpLinefUP, lpPointsfUP, err := plotter.NewLinePoints(fUPPercPts)
+			lpLine, lpPoints, err := plotter.NewLinePoints(pts)
 			if err != nil {
 				Logger.Error("GeneratePercentilesPlot-to-fronted-up: NewLinePoints", err.Error())
-				return "", err
+				return "", "", "", err
 			}
-			lpLinefUP.Color = plotutil.Color(1)
-			lpPointsfUP.Shape = draw.PyramidGlyph{}
-			lpPointsfUP.Color = plotutil.Color(1)
+			lpLine.Color = plotutil.Color(1)
+			lpPoints.Shape = draw.PyramidGlyph{}
+			lpPoints.Color = plotutil.Color(1)
 
-			p.Add(lpLinefUP, lpPointsfUP)
-			p.Legend.Add("to-fronted-up", lpLinefUP, lpPointsfUP)
+			p.Add(lpLine, lpPoints)
+			p.Legend.Add("to-fronted-up", lpLine, lpPoints)
+
+			if err := p.Save(30*vg.Centimeter, 20*vg.Centimeter, fNameFUp); err != nil {
+				Logger.Error("GeneratePlot: Saving plot:", fNameFUp)
+				return "", "", "", err
+			}
 		}
 
-		fName := fileName + "_" + "percentiles" + "_" + genTS + ".png"
+		//fronted-up-main-delta
 
-		if err := p.Save(30*vg.Centimeter, 20*vg.Centimeter, fName); err != nil {
-			Logger.Error("GeneratePlot: Saving plot:", fName)
-			return "", err
+		fNameFUpD := fileName + "_percentiles_fup_main_delta_" + genTS + ".svg"
+
+		{
+			p := plot.New()
+			p.Add(plotter.NewGrid())
+
+			p.Title.Text = "Percentiles - FrontEndUp-Main-Delta (Nearest Rank): " + mark
+			p.X.Label.Text = "Percentile"
+			p.Y.Label.Text = "Duration: " + timeUnit
+
+			pts := make(plotter.XYs, 100)
+			for i := 1; i <= 100; i++ {
+				if val, err := stats.PercentileNearestRank(evtSeriesFUpMainDelta, float64(i)); err == nil {
+					pts[i-1].X = float64(i)
+					pts[i-1].Y = val
+				}
+			}
+
+			lpLine, lpPoints, err := plotter.NewLinePoints(pts)
+			if err != nil {
+				Logger.Error("GeneratePercentilesPlot-to-fronted-up: NewLinePoints", err.Error())
+				return "", "", "", err
+			}
+			lpLine.Color = plotutil.Color(2)
+			lpPoints.Shape = draw.PyramidGlyph{}
+			lpPoints.Color = plotutil.Color(2)
+
+			p.Add(lpLine, lpPoints)
+			p.Legend.Add("to-fronted-up", lpLine, lpPoints)
+
+			if err := p.Save(30*vg.Centimeter, 20*vg.Centimeter, fNameFUpD); err != nil {
+				Logger.Error("GeneratePlot: Saving plot:", fNameFUpD)
+				return "", "", "", err
+			}
 		}
 
-		return fName, nil
+		return fNameMain, fNameFUp, fNameFUpD, nil
 
 	} else {
 		Logger.Error("GeneratePercentilesPlot: no series with mark:", mark)
-		return "", errors.New("no series with mark")
+		return "", "", "", errors.New("no series with mark")
 	}
 }
