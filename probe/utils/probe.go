@@ -13,7 +13,10 @@ package utils
 
 import (
 	"bytes"
+	"encoding/json"
 	"net/http"
+	"os"
+	"strconv"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws/credentials"
@@ -75,6 +78,14 @@ func (p *Probe) SubmitStart(evt *StartEvent) {
 			time.Sleep(time.Duration(Cfg.WaitMSecsBeforeTriggerDeath) * time.Millisecond)
 			p.RequestDie()
 		} else {
+			timeUnit := "ms"
+			genTS := strconv.Itoa(int(time.Now().Unix()))
+			stats := p.ComputeStats(timeUnit, true)
+
+			SaveStats(p.CurrentMark, genTS, stats)
+			GenerateRawDataPlot(Prb.CollectedRestartRelatedData, p.CurrentMark, timeUnit, p.CurrentMark, genTS)
+			GeneratePercentilesPlot(Prb.CollectedRestartRelatedData, p.CurrentMark, timeUnit, p.CurrentMark, genTS)
+			SendStatsArtifactsToS3(S3Client, Cfg.SaveDataBucket, p.CurrentMark, genTS)
 			p.CurrentId = 0
 		}
 	}
@@ -117,6 +128,7 @@ func (p *Probe) submitRestart() {
 	if p.CurrentPendingRestarts > 0 {
 		p.CurrentPendingRestarts = p.CurrentPendingRestarts - 1
 	}
+
 	Logger.Infof("pending restarts: %d", p.CurrentPendingRestarts)
 	p.CurrentDeath = nil
 	p.CurrentStartList = nil
@@ -231,4 +243,15 @@ func (p *Probe) ComputeStats(timeUnit string, dumpAllData bool) Stats {
 		}
 	}
 	return result
+}
+
+func SaveStats(mark string, genTS string, stats Stats) {
+	if resultFile, err := json.MarshalIndent(stats, "", " "); err != nil {
+		Logger.Errorf("json.MarshalIndent:%s", err.Error())
+	} else {
+		fName := mark + "_stats_" + genTS + ".json"
+		if err := os.WriteFile(fName, resultFile, 0644); err != nil {
+			Logger.Errorf("os.WriteFile:%s", err.Error())
+		}
+	}
 }

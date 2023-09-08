@@ -18,6 +18,9 @@ type Config struct {
 	EndpointS3GW                string
 	WaitMSecsBeforeTriggerDeath uint //msec
 	CollectRestartAtEvent       string
+	SaveDataS3Endpoint          string
+	SaveDataS3ForcePathStyle    bool
+	SaveDataBucket              string
 }
 
 type DeathEvent struct {
@@ -48,17 +51,17 @@ type SeriesEntry struct {
 	MinMain         uint64         `json:"min_to_main"`
 	MaxMain         uint64         `json:"max_to_main"`
 	MeanMain        uint64         `json:"mean_to_main"`
-	Perc99Main      uint64         `json:"99%_to_main"`
-	Perc95Main      uint64         `json:"95%_to_main"`
-	PercNR99Main    uint64         `json:"99%NR_to_main"`
-	PercNR95Main    uint64         `json:"95%NR_to_main"`
+	Perc99Main      uint64         `json:"99p_to_main"`
+	Perc95Main      uint64         `json:"95p_to_main"`
+	PercNR99Main    uint64         `json:"99pNR_to_main"`
+	PercNR95Main    uint64         `json:"95pNR_to_main"`
 	MinFrontUp      uint64         `json:"min_to_frontend_up"`
 	MaxFrontUp      uint64         `json:"max_to_frontend_up"`
 	MeanFrontUp     uint64         `json:"mean_to_frontend_up"`
-	Perc99FrontUp   uint64         `json:"99%_to_frontend_up"`
-	Perc95FrontUp   uint64         `json:"95%_to_frontend_up"`
-	PercNR99FrontUp uint64         `json:"99%NR_to_frontend_up"`
-	PercNR95FrontUp uint64         `json:"95%NR_to_frontend_up"`
+	Perc99FrontUp   uint64         `json:"99p_to_frontend_up"`
+	Perc95FrontUp   uint64         `json:"95p_to_frontend_up"`
+	PercNR99FrontUp uint64         `json:"99pNR_to_frontend_up"`
+	PercNR95FrontUp uint64         `json:"95pNR_to_frontend_up"`
 	Data            []RestartEntry `json:"data"`
 }
 

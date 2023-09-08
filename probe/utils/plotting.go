@@ -12,6 +12,8 @@
 package utils
 
 import (
+	"errors"
+
 	"github.com/montanaflynn/stats"
 	"gonum.org/v1/plot"
 	"gonum.org/v1/plot/plotter"
@@ -24,7 +26,7 @@ func GenerateRawDataPlot(data RestartRelatedData,
 	mark string,
 	timeUnit string,
 	fileName string,
-	genTS string) {
+	genTS string) (string, error) {
 
 	if restartEvents, hit := data[mark]; hit {
 		p := plot.New()
@@ -48,7 +50,7 @@ func GenerateRawDataPlot(data RestartRelatedData,
 			lpLineMain, lpPointsMain, err := plotter.NewLinePoints(mainPts)
 			if err != nil {
 				Logger.Error("GeneratePlot-to-main: NewLinePoints", err.Error())
-				return
+				return "", err
 			}
 			lpLineMain.Color = plotutil.Color(0)
 			lpPointsMain.Shape = draw.PyramidGlyph{}
@@ -70,7 +72,7 @@ func GenerateRawDataPlot(data RestartRelatedData,
 			lpLineFUp, lpPointsFUp, err := plotter.NewLinePoints(frontendUpPts)
 			if err != nil {
 				Logger.Error("GeneratePlot-to-fronted-up: NewLinePoints", err.Error())
-				return
+				return "", err
 			}
 			lpLineFUp.Color = plotutil.Color(1)
 			lpPointsFUp.Shape = draw.PyramidGlyph{}
@@ -84,9 +86,14 @@ func GenerateRawDataPlot(data RestartRelatedData,
 
 		if err := p.Save(30*vg.Centimeter, 20*vg.Centimeter, fName); err != nil {
 			Logger.Error("GeneratePlot: Saving plot:", fName)
+			return "", err
 		}
+
+		return fName, nil
+
 	} else {
 		Logger.Error("GeneratePlot: no series with mark:", mark)
+		return "", errors.New("no series with mark")
 	}
 }
 
@@ -94,7 +101,7 @@ func GeneratePercentilesPlot(data RestartRelatedData,
 	mark string,
 	timeUnit string,
 	fileName string,
-	genTS string) {
+	genTS string) (string, error) {
 	if restartEvents, hit := data[mark]; hit {
 		p := plot.New()
 		p.Add(plotter.NewGrid())
@@ -119,7 +126,7 @@ func GeneratePercentilesPlot(data RestartRelatedData,
 			lpLineMain, lpPointsMain, err := plotter.NewLinePoints(mainPercPts)
 			if err != nil {
 				Logger.Error("GeneratePercentilesPlot-to-main: NewLinePoints", err.Error())
-				return
+				return "", err
 			}
 			lpLineMain.Color = plotutil.Color(0)
 			lpPointsMain.Shape = draw.PyramidGlyph{}
@@ -143,7 +150,7 @@ func GeneratePercentilesPlot(data RestartRelatedData,
 			lpLinefUP, lpPointsfUP, err := plotter.NewLinePoints(fUPPercPts)
 			if err != nil {
 				Logger.Error("GeneratePercentilesPlot-to-fronted-up: NewLinePoints", err.Error())
-				return
+				return "", err
 			}
 			lpLinefUP.Color = plotutil.Color(1)
 			lpPointsfUP.Shape = draw.PyramidGlyph{}
@@ -157,8 +164,13 @@ func GeneratePercentilesPlot(data RestartRelatedData,
 
 		if err := p.Save(30*vg.Centimeter, 20*vg.Centimeter, fName); err != nil {
 			Logger.Error("GeneratePlot: Saving plot:", fName)
+			return "", err
 		}
+
+		return fName, nil
+
 	} else {
 		Logger.Error("GeneratePercentilesPlot: no series with mark:", mark)
+		return "", errors.New("no series with mark")
 	}
 }

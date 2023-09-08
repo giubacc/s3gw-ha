@@ -34,7 +34,7 @@ s3gw-build:
 s3gw-push-image:
 	docker push ghcr.io/giubacc/s3gw:latest
 
-probe-build:
+docker-probe-build:
 	docker build -t ghcr.io/giubacc/s3gw-probe:latest -f dockerfiles/Dockerfile.s3gw-probe .
 
 probe-push-image:
@@ -81,32 +81,38 @@ local-setup:
 	&& source venv/bin/activate \
 	&& pip install -r requirements.txt
 
-local-watchdog:
+watchdog:
 	cd tests \
 	&& python3 -m venv venv \
 	&& source venv/bin/activate \
 	&& python3 ./s3gw_watchdog.py
 
-local-radosgw-cmake:
+saver:
+	cd tests \
+	&& python3 -m venv venv \
+	&& source venv/bin/activate \
+	&& python3 ./s3gw_data_saver.py
+
+radosgw-cmake:
 	sudo rm -rf ceph/build
 	@./scripts/cmake-radosgw.sh
 
-local-radosgw-compile:
+radosgw-compile:
 	@./scripts/build-radosgw.sh
 
-local-radosgw-build:
+radosgw-build:
 	sudo rm -rf ceph/build
 	@./scripts/cmake-radosgw.sh
 	@./scripts/build-radosgw.sh
 
-local-clean-wd:
+clean-wd:
 	sudo rm -rf wd/*
 
-local-probe-build:
+probe-build:
 	go build -o probe/bin/probe probe/main.go
 
-local-probe-run:
+probe-run:
 	probe/bin/probe -s3gw-endpoint http://localhost:7480 -wbtd 300
 
-local-probe-fr-up-run:
+probe-fr-up-run:
 	probe/bin/probe -s3gw-endpoint http://localhost:7480 -wbtd 300 -collectAt frontend-up

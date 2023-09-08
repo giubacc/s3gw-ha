@@ -23,6 +23,9 @@ import (
 
 func main() {
 	flag.StringVar(&Cfg.EndpointS3GW, "s3gw-endpoint", "http://localhost:7480", "Specify s3gw endpoint")
+	flag.StringVar(&Cfg.SaveDataS3Endpoint, "save-data-endpoint", "http://localhost:7482", "Specify the S3 endpoint where to save results")
+	flag.BoolVar(&Cfg.SaveDataS3ForcePathStyle, "save-data-path-style", true, "Force the S3 Path Style")
+	flag.StringVar(&Cfg.SaveDataBucket, "save-data-bucket", "s3gw-ha-testing", "The bucket where to save results")
 	flag.UintVar(&Cfg.WaitMSecsBeforeTriggerDeath, "wbtd", 100, "Wait n milliseconds before trigger death")
 	flag.StringVar(&Cfg.CollectRestartAtEvent, "collectAt", "frontend-up", "The event where the probe should collect a restart event")
 	flag.StringVar(&Cfg.LogLevel, "v", "inf", "Specify logging verbosity [off, trc, inf, wrn, err]")
@@ -34,12 +37,21 @@ func main() {
 
 	Logger = GetLogger(&Cfg)
 
+	//S3Client
+
+	S3Client = InitS3Client()
+
+	if err := CreateBucket(S3Client, Cfg.SaveDataBucket); err != nil {
+		Logger.Errorf("CreateBucket:%s", err.Error())
+	}
+
+	//GIN
+
 	router := gin.Default()
 
 	router.PUT("/death", setDeath)
 	router.PUT("/start", setStart)
 	router.GET("/stats", getStats)
-	router.GET("/plot", plot)
 	router.PUT("/trigger", trigger)
 
 	Logger.Info("start listening and serving ...")
@@ -71,6 +83,10 @@ func setStart(c *gin.Context) {
 }
 
 func getStats(c *gin.Context) {
+	mark := c.Query("mark")
+	if mark == "" {
+		mark = "all"
+	}
 	timeUnit := c.Query("time_unit")
 	if timeUnit == "" {
 		timeUnit = StrSec
@@ -82,9 +98,14 @@ func getStats(c *gin.Context) {
 		dumpAllData = true
 	}
 
-	result := Prb.ComputeStats(timeUnit, dumpAllData)
+	genTS := strconv.Itoa(int(time.Now().Unix()))
+	stats := Prb.ComputeStats(timeUnit, dumpAllData)
 
-	c.JSON(http.StatusOK, result)
+	SaveStats(mark, genTS, stats)
+	GenerateRawDataPlot(Prb.CollectedRestartRelatedData, mark, timeUnit, mark, genTS)
+	GeneratePercentilesPlot(Prb.CollectedRestartRelatedData, mark, timeUnit, mark, genTS)
+
+	c.JSON(http.StatusOK, stats)
 }
 
 func trigger(c *gin.Context) {
@@ -99,20 +120,4 @@ func trigger(c *gin.Context) {
 	Prb.CurrentMark = c.Query("mark")
 
 	Prb.RequestDie()
-}
-
-func plot(c *gin.Context) {
-	mark := c.Query("mark")
-	if mark == "" {
-		mark = "all"
-	}
-	timeUnit := c.Query("time_unit")
-	if timeUnit == "" {
-		timeUnit = StrSec
-	}
-
-	genTS := strconv.Itoa(int(time.Now().Unix()))
-
-	GenerateRawDataPlot(Prb.CollectedRestartRelatedData, mark, timeUnit, mark, genTS)
-	GeneratePercentilesPlot(Prb.CollectedRestartRelatedData, mark, timeUnit, mark, genTS)
 }
