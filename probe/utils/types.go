@@ -15,7 +15,8 @@ type Config struct {
 	//logging
 	LogLevel                    string
 	VerbLevel                   uint
-	EndpointS3GW                string
+	S3GWEndpoint                string
+	S3GWS3ForcePathStyle        bool
 	WaitMSecsBeforeTriggerDeath uint //msec
 	CollectRestartAtEvent       string
 	SaveDataS3Endpoint          string

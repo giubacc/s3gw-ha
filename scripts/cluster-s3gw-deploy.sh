@@ -40,7 +40,7 @@ function deploy_s3gw_ha_latest_released {
     --set imageRegistry=ghcr.io/giubacc \
     --set imageName=s3gw \
     --set imageTag=v"${IMAGE_TAG}" \
-    --set rgwCustomArgs="{--probe-endpoint,http://s3gw-probe-s3gw-sd.s3gw-sd.svc.cluster.local:80}"
+    --set rgwCustomArgs="{--rgw_relaxed_region_enforcement, 1, --probe-endpoint,http://s3gw-probe-s3gw-sd.s3gw-sd.svc.cluster.local:80}"
 }
 
 echo "Deploying s3gw-ha/s3gw-ha"

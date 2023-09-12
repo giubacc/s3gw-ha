@@ -32,7 +32,7 @@
           --set publicDomain={{ S3GW_SYSTEM_DOMAIN }} \
           --set ui.enabled=false \
           --set storageClass.name=longhorn \
-          --set rgwCustomArgs="{--probe-endpoint,http://s3gw-probe-s3gw-sd.s3gw-sd.svc.cluster.local:80}"
+          --set rgwCustomArgs="{--rgw_relaxed_region_enforcement, 1, --probe-endpoint,http://s3gw-probe-s3gw-sd.s3gw-sd.svc.cluster.local:80}"
 
     - name: Install s3gw-sd
       shell: |

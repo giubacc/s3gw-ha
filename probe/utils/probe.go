@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/gin-gonic/gin"
 	"github.com/montanaflynn/stats"
 )
 
@@ -50,18 +51,28 @@ type Probe struct {
 	CurrentStartList []*StartEvent
 
 	CurrentPendingRestarts uint
+	CurrentGracePeriod     uint
 	CurrentDeathType       string
 	CurrentMark            string
 	CurrentId              int
+	CurrentInterposeFunc   func(*gin.Context)
+	CurrentGinCtx          *gin.Context
 
 	CollectedRestartRelatedData RestartRelatedData
 }
 
-func (p *Probe) Clear() {
+func (p *Probe) ResetCurrentState() {
 	p.CurrentPendingRestarts = 0
+	p.CurrentGracePeriod = 0
 	p.CurrentDeathType = ""
 	p.CurrentMark = ""
 	p.CurrentId = 0
+	p.CurrentInterposeFunc = nil
+	p.CurrentGinCtx = nil
+}
+
+func (p *Probe) Clear() {
+	p.ResetCurrentState()
 	for k := range p.CollectedRestartRelatedData {
 		delete(p.CollectedRestartRelatedData, k)
 	}
@@ -86,6 +97,13 @@ func (p *Probe) SubmitStart(evt *StartEvent) {
 		p.submitRestart()
 		if p.CurrentPendingRestarts > 0 {
 			time.Sleep(time.Duration(Cfg.WaitMSecsBeforeTriggerDeath) * time.Millisecond)
+			if p.CurrentGracePeriod > 0 {
+				Logger.Infof("waiting %d secs...", p.CurrentGracePeriod)
+				time.Sleep(time.Duration(p.CurrentGracePeriod) * time.Second)
+			}
+			if p.CurrentInterposeFunc != nil && p.CurrentGinCtx != nil {
+				p.CurrentInterposeFunc(p.CurrentGinCtx)
+			}
 			p.RequestDie()
 		} else {
 
@@ -97,12 +115,9 @@ func (p *Probe) SubmitStart(evt *StartEvent) {
 			genTS := strconv.Itoa(int(time.Now().Unix()))
 			stats := p.ComputeStats(p.CurrentMark, timeUnit, true)
 
-			SendStatsArtifactsToS3(S3Client, Cfg.SaveDataBucket, p.Render(genTS, timeUnit, stats))
+			SendStatsArtifactsToS3(S3Client_SaveData, Cfg.SaveDataBucket, p.Render(genTS, timeUnit, stats))
 
-			p.CurrentPendingRestarts = 0
-			p.CurrentDeathType = ""
-			p.CurrentMark = ""
-			p.CurrentId = 0
+			p.ResetCurrentState()
 		}
 	}
 }
@@ -167,7 +182,7 @@ func (p *Probe) submitRestart() {
 }
 
 func (p *Probe) RequestDie() {
-	req, err := http.NewRequest("PUT", Cfg.EndpointS3GW, bytes.NewReader([]byte("")))
+	req, err := http.NewRequest("PUT", Cfg.S3GWEndpoint, bytes.NewReader([]byte("")))
 	if err != nil {
 		Logger.Errorf("NewRequest:%s", err.Error())
 	}

@@ -22,9 +22,10 @@ import (
 )
 
 func main() {
-	flag.StringVar(&Cfg.EndpointS3GW, "s3gw-endpoint", "http://localhost:7480", "Specify s3gw endpoint")
-	flag.StringVar(&Cfg.SaveDataS3Endpoint, "save-data-endpoint", "http://localhost:7482", "Specify the S3 endpoint where to save results")
-	flag.BoolVar(&Cfg.SaveDataS3ForcePathStyle, "save-data-path-style", true, "Force the S3 Path Style")
+	flag.StringVar(&Cfg.S3GWEndpoint, "s3gw-endpoint", "http://localhost:7480", "Specify s3gw endpoint")
+	flag.BoolVar(&Cfg.S3GWS3ForcePathStyle, "s3gw-path-style", true, "Force the s3gw S3 Path Style")
+	flag.StringVar(&Cfg.SaveDataS3Endpoint, "save-data-endpoint", "http://localhost:7482", "Specify the save-data endpoint to save results")
+	flag.BoolVar(&Cfg.SaveDataS3ForcePathStyle, "save-data-path-style", true, "Force the save-data S3 Path Style")
 	flag.StringVar(&Cfg.SaveDataBucket, "save-data-bucket", "s3gw-ha-testing", "The bucket where to save results")
 	flag.UintVar(&Cfg.WaitMSecsBeforeTriggerDeath, "wbtd", 100, "Wait n milliseconds before trigger death")
 	flag.StringVar(&Cfg.CollectRestartAtEvent, "collectAt", "frontend-up", "The event where the probe should collect a restart event")
@@ -37,11 +38,12 @@ func main() {
 
 	Logger = GetLogger(&Cfg)
 
-	//S3Client
+	//S3Clients
 
-	S3Client = InitS3Client()
+	S3Client_S3GW = InitS3Client_S3GW()
+	S3Client_SaveData = InitS3Client_SaveData()
 
-	if err := CreateBucket(S3Client, Cfg.SaveDataBucket); err != nil {
+	if err := CreateBucket(S3Client_SaveData, Cfg.SaveDataBucket); err != nil {
 		Logger.Errorf("CreateBucket:%s", err.Error())
 	}
 
@@ -54,6 +56,7 @@ func main() {
 	router.GET("/stats", computeStats)
 	router.PUT("/trigger", trigger)
 	router.POST("/clear", clear)
+	router.POST("/fill", fill)
 
 	Logger.Info("start listening and serving ...")
 	router.Run() // listen and serve on 0.0.0.0:8080
@@ -103,12 +106,18 @@ func computeStats(c *gin.Context) {
 	stats := Prb.ComputeStats(mark, timeUnit, dumpAllData)
 
 	fNames := Prb.Render(genTS, timeUnit, stats)
-	SendStatsArtifactsToS3(S3Client, Cfg.SaveDataBucket, fNames)
+	SendStatsArtifactsToS3(S3Client_SaveData, Cfg.SaveDataBucket, fNames)
 
 	c.JSON(http.StatusOK, stats)
 }
 
 func trigger(c *gin.Context) {
+	gracePeriod := c.Query("grace")
+	if val, err := strconv.ParseUint(gracePeriod, 0, 32); err == nil {
+		Prb.CurrentGracePeriod = uint(val)
+	} else {
+		Prb.CurrentGracePeriod = 0
+	}
 	if restarts, err := strconv.ParseUint(c.Query("restarts"), 0, 32); err == nil {
 		Prb.CurrentPendingRestarts = uint(restarts)
 	} else {
@@ -119,9 +128,34 @@ func trigger(c *gin.Context) {
 	Prb.CurrentDeathType = c.Query("how")
 	Prb.CurrentMark = c.Query("mark")
 
+	switch interposeFunc := c.Query("interpose"); interposeFunc {
+	case "fill":
+		Prb.CurrentGinCtx = c.Copy()
+		Prb.CurrentInterposeFunc = fill
+	}
+
 	Prb.RequestDie()
 }
 
 func clear(c *gin.Context) {
 	Prb.Clear()
+}
+
+func fill(c *gin.Context) {
+	bucket := c.Query("bucket")
+	objBaseName := c.Query("obj_base_name")
+	payload := c.Query("payload")
+	objCountPar := c.Query("obj_count")
+	erase := c.Query("erase")
+	addTSPar := c.Query("add-ts")
+	addTS := addTSPar == "1"
+	if objCount, err := strconv.ParseUint(objCountPar, 0, 64); err == nil {
+		FillWithObjects(S3Client_S3GW, bucket, objBaseName, payload, objCount, addTS)
+		if erase == "1" {
+			EraseObjects(S3Client_S3GW, bucket, objBaseName, objCount)
+		}
+	} else {
+		Logger.Errorf("malformed objCountPar:%s", err.Error())
+		c.String(http.StatusBadRequest, err.Error())
+	}
 }

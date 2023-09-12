@@ -80,6 +80,12 @@ watchdog:
 	&& source venv/bin/activate \
 	&& python3 ./s3gw_watchdog.py
 
+fio:
+	cd tests \
+	&& python3 -m venv venv \
+	&& source venv/bin/activate \
+	&& python3 ./fio_watchdog.py
+
 saver:
 	cd tests \
 	&& python3 -m venv venv \
