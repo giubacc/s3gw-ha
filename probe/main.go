@@ -57,6 +57,7 @@ func main() {
 	router.PUT("/trigger", trigger)
 	router.POST("/clear", clear)
 	router.POST("/fill", fill)
+	router.GET("/set_replicas", set_replicas)
 
 	Logger.Info("start listening and serving ...")
 	router.Run() // listen and serve on 0.0.0.0:8080
@@ -156,6 +157,18 @@ func fill(c *gin.Context) {
 		}
 	} else {
 		Logger.Errorf("malformed objCountPar:%s", err.Error())
+		c.String(http.StatusBadRequest, err.Error())
+	}
+}
+
+func set_replicas(c *gin.Context) {
+	namespace := c.Query("ns")
+	deployment := c.Query("d_name")
+	replicasPar := c.Query("replicas")
+	if replicas, err := strconv.ParseInt(replicasPar, 0, 64); err == nil {
+		SetReplicasForDeployment(namespace, deployment, int32(replicas))
+	} else {
+		Logger.Errorf("malformed replicas:%s", err.Error())
 		c.String(http.StatusBadRequest, err.Error())
 	}
 }
