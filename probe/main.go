@@ -19,10 +19,13 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	v1 "k8s.io/api/core/v1"
 )
 
 func main() {
-	flag.StringVar(&Cfg.S3GWEndpoint, "s3gw-endpoint", "http://localhost:7480", "Specify s3gw endpoint")
+	flag.StringVar(&Cfg.S3GWEndpoint, "s3gw-endpoint", "http://localhost:7480", "Specify the s3gw endpoint")
+	flag.StringVar(&Cfg.S3GWNamespace, "s3gw-ns", "s3gw-ha", "Specify the s3gw namespace")
+	flag.StringVar(&Cfg.S3GWDeployment, "s3gw-d", "s3gw-ha", "Specify the s3gw deployment name")
 	flag.BoolVar(&Cfg.S3GWS3ForcePathStyle, "s3gw-path-style", true, "Force the s3gw S3 Path Style")
 	flag.StringVar(&Cfg.SaveDataS3Endpoint, "save-data-endpoint", "http://localhost:7482", "Specify the save-data endpoint to save results")
 	flag.BoolVar(&Cfg.SaveDataS3ForcePathStyle, "save-data-path-style", true, "Force the save-data S3 Path Style")
@@ -47,6 +50,10 @@ func main() {
 		Logger.Errorf("CreateBucket:%s", err.Error())
 	}
 
+	//K8s client
+
+	K8sCli.Init()
+
 	//GIN
 
 	router := gin.Default()
@@ -57,7 +64,8 @@ func main() {
 	router.PUT("/trigger", trigger)
 	router.POST("/clear", clear)
 	router.POST("/fill", fill)
-	router.GET("/set_replicas", set_replicas)
+	router.POST("/set_replicas", set_replicas)
+	router.POST("/set_taint", set_taint)
 
 	Logger.Info("start listening and serving ...")
 	router.Run() // listen and serve on 0.0.0.0:8080
@@ -166,9 +174,28 @@ func set_replicas(c *gin.Context) {
 	deployment := c.Query("d_name")
 	replicasPar := c.Query("replicas")
 	if replicas, err := strconv.ParseInt(replicasPar, 0, 64); err == nil {
-		SetReplicasForDeployment(namespace, deployment, int32(replicas))
+		K8sCli.SetReplicasForDeployment(namespace, deployment, int32(replicas))
 	} else {
 		Logger.Errorf("malformed replicas:%s", err.Error())
 		c.String(http.StatusBadRequest, err.Error())
+	}
+}
+
+func set_taint(c *gin.Context) {
+	node := c.Query("node")
+	key := c.Query("key")
+	val := c.Query("val")
+	effect := c.Query("effect")
+	remove := c.Query("remove")
+	if remove == "1" {
+		if err := K8sCli.UnsetTaint(node, key, val, v1.TaintEffect(effect)); err != nil {
+			Logger.Errorf("UnsetTaint:%s", err.Error())
+			c.String(http.StatusInternalServerError, err.Error())
+		}
+	} else {
+		if err := K8sCli.SetTaint(node, key, val, v1.TaintEffect(effect)); err != nil {
+			Logger.Errorf("SetTaint:%s", err.Error())
+			c.String(http.StatusInternalServerError, err.Error())
+		}
 	}
 }

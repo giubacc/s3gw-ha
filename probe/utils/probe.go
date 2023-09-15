@@ -22,6 +22,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/gin-gonic/gin"
 	"github.com/montanaflynn/stats"
+	v1 "k8s.io/api/core/v1"
 )
 
 const (
@@ -50,13 +51,15 @@ type Probe struct {
 	CurrentDeath     *DeathEvent
 	CurrentStartList []*StartEvent
 
-	CurrentPendingRestarts uint
-	CurrentGracePeriod     uint
-	CurrentDeathType       string
-	CurrentMark            string
-	CurrentId              int
-	CurrentInterposeFunc   func(*gin.Context)
-	CurrentGinCtx          *gin.Context
+	CurrentPendingRestarts   uint
+	CurrentGracePeriod       uint
+	CurrentDeathType         string
+	CurrentMark              string
+	CurrentId                int
+	CurrentInterposeFunc     func(*gin.Context)
+	CurrentGinCtx            *gin.Context
+	CurrentNodeNameList      *[]string
+	CurrentNodeNameActiveIdx uint
 
 	CollectedRestartRelatedData RestartRelatedData
 }
@@ -69,6 +72,11 @@ func (p *Probe) ResetCurrentState() {
 	p.CurrentId = 0
 	p.CurrentInterposeFunc = nil
 	p.CurrentGinCtx = nil
+	if p.CurrentNodeNameList == nil {
+		p.SetK8sScheduleAllNodes()
+	}
+	p.CurrentNodeNameList = nil
+	p.CurrentNodeNameActiveIdx = 0
 }
 
 func (p *Probe) Clear() {
@@ -181,11 +189,12 @@ func (p *Probe) submitRestart() {
 	p.CurrentStartList = nil
 }
 
-func (p *Probe) RequestDie() {
+func (p *Probe) AskRadosgwToDie() {
 	req, err := http.NewRequest("PUT", Cfg.S3GWEndpoint, bytes.NewReader([]byte("")))
 	if err != nil {
 		Logger.Errorf("NewRequest:%s", err.Error())
 	}
+
 	req.URL.Path = "/admin/bucket"
 	req.Header.Set("x-amz-content-sha256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
 	q := req.URL.Query()
@@ -202,6 +211,48 @@ func (p *Probe) RequestDie() {
 	client := &http.Client{}
 	if _, err = client.Do(req); err != nil {
 		Logger.Errorf("Do:%s", err.Error())
+	}
+}
+
+func (p *Probe) AskK8sScaleDeployment_0_1() {
+	K8sCli.SetReplicasForDeployment(Cfg.S3GWNamespace, Cfg.S3GWDeployment, 0)
+	K8sCli.SetReplicasForDeployment(Cfg.S3GWNamespace, Cfg.S3GWDeployment, 1)
+}
+
+func (p *Probe) SetK8sScheduleNextNode() {
+	activeIdx := (p.CurrentNodeNameActiveIdx + 1) % uint(len(*p.CurrentNodeNameList))
+	for idx, node := range *p.CurrentNodeNameList {
+		if idx != int(activeIdx) {
+			K8sCli.SetTaint(node, "noSch", "1", v1.TaintEffectNoSchedule)
+		} else {
+			K8sCli.UnsetTaint(node, "noSch", "1", v1.TaintEffectNoSchedule)
+		}
+	}
+	p.CurrentNodeNameActiveIdx = activeIdx
+}
+
+func (p *Probe) SetK8sScheduleAllNodes() {
+	for _, node := range *p.CurrentNodeNameList {
+		K8sCli.UnsetTaint(node, "noSch", "1", v1.TaintEffectNoSchedule)
+	}
+}
+
+func (p *Probe) RequestDie() {
+	switch p.CurrentDeathType {
+	case "k8s_scale_deployment_0_1":
+		p.AskK8sScaleDeployment_0_1()
+	case "k8s_scale_deployment_0_1_node_rr":
+		if p.CurrentNodeNameList == nil {
+			var err error
+			if p.CurrentNodeNameList, err = K8sCli.GetNodeNameList(); err != nil {
+				Logger.Errorf("GetNodeNameList:%s", err.Error())
+				return
+			}
+		}
+		p.SetK8sScheduleNextNode()
+		p.AskK8sScaleDeployment_0_1()
+	default:
+		p.AskRadosgwToDie()
 	}
 }
 

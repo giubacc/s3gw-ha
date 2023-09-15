@@ -31,6 +31,9 @@ var Cfg Config
 // probe
 var Prb Probe
 
+// k8s client
+var K8sCli K8sClient
+
 func EpochTime() time.Time { return time.Unix(0, 0) }
 
 func NanoSecName(base string) string {

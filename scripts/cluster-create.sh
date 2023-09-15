@@ -16,7 +16,7 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 NETWORK_NAME=s3gw-ha
 CLUSTER_NAME=s3gw-ha
 K3S_IMAGE=${K3S_IMAGE:-rancher/k3s:v1.25.10-k3s1}
-CLUSTER_NODES=${CLUSTER_NODES:-1}
+AGENT_NODES=${AGENT_NODES:-1}
 export KUBECONFIG=$SCRIPT_DIR/../tmp/ha-kubeconfig
 
 check_deps() {
@@ -47,14 +47,14 @@ if [ -z ${EXPOSE_CLUSTER_PORTS+x} ]; then
   k3d cluster create $CLUSTER_NAME \
     -v /dev/mapper:/dev/mapper \
     --network $NETWORK_NAME \
-    --agents $CLUSTER_NODES \
+    --agents $AGENT_NODES \
     --image "$K3S_IMAGE"
 else
   # Exposing ports on the host:
   k3d cluster create $CLUSTER_NAME \
     -v /dev/mapper:/dev/mapper \
     --network $NETWORK_NAME \
-    --agents $CLUSTER_NODES \
+    --agents $AGENT_NODES \
     --image "$K3S_IMAGE" \
     -p '80:80@server:0' -p '443:443@server:0'
 fi
