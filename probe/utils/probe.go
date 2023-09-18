@@ -60,6 +60,8 @@ type Probe struct {
 	CurrentGinCtx            *gin.Context
 	CurrentNodeNameList      *[]string
 	CurrentNodeNameActiveIdx uint
+	CurrentSelectedNode      string
+	CurrentSelectedNodeSet   bool
 
 	CollectedRestartRelatedData RestartRelatedData
 }
@@ -72,11 +74,13 @@ func (p *Probe) ResetCurrentState() {
 	p.CurrentId = 0
 	p.CurrentInterposeFunc = nil
 	p.CurrentGinCtx = nil
-	if p.CurrentNodeNameList == nil {
+	if p.CurrentNodeNameList != nil {
 		p.SetK8sScheduleAllNodes()
 	}
 	p.CurrentNodeNameList = nil
 	p.CurrentNodeNameActiveIdx = 0
+	p.CurrentSelectedNode = ""
+	p.CurrentSelectedNodeSet = false
 }
 
 func (p *Probe) Clear() {
@@ -216,7 +220,10 @@ func (p *Probe) AskRadosgwToDie() {
 
 func (p *Probe) AskK8sScaleDeployment_0_1() {
 	K8sCli.SetReplicasForDeployment(Cfg.S3GWNamespace, Cfg.S3GWDeployment, 0)
+	Logger.Info("set replicas=0")
+	time.Sleep(time.Duration(Cfg.WaitMSecsBeforeSetReplicas1) * time.Millisecond)
 	K8sCli.SetReplicasForDeployment(Cfg.S3GWNamespace, Cfg.S3GWDeployment, 1)
+	Logger.Info("set replicas=1")
 }
 
 func (p *Probe) SetK8sScheduleNextNode() {
@@ -231,13 +238,27 @@ func (p *Probe) SetK8sScheduleNextNode() {
 	p.CurrentNodeNameActiveIdx = activeIdx
 }
 
+func (p *Probe) SetK8sNoScheduleAllNodes() {
+	nodeNameList, _ := K8sCli.GetNodeNameList()
+	for _, node := range *nodeNameList {
+		K8sCli.SetTaint(node, "noSch", "1", v1.TaintEffectNoSchedule)
+	}
+}
+
 func (p *Probe) SetK8sScheduleAllNodes() {
-	for _, node := range *p.CurrentNodeNameList {
+	nodeNameList, _ := K8sCli.GetNodeNameList()
+	for _, node := range *nodeNameList {
 		K8sCli.UnsetTaint(node, "noSch", "1", v1.TaintEffectNoSchedule)
 	}
 }
 
 func (p *Probe) RequestDie() {
+	if p.CurrentSelectedNode != "" && !p.CurrentSelectedNodeSet {
+		p.SetK8sNoScheduleAllNodes()
+		K8sCli.UnsetTaint(p.CurrentSelectedNode, "noSch", "1", v1.TaintEffectNoSchedule)
+		p.CurrentSelectedNodeSet = true
+	}
+
 	switch p.CurrentDeathType {
 	case "k8s_scale_deployment_0_1":
 		p.AskK8sScaleDeployment_0_1()

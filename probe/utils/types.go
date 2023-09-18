@@ -20,6 +20,7 @@ type Config struct {
 	S3GWDeployment              string
 	S3GWS3ForcePathStyle        bool
 	WaitMSecsBeforeTriggerDeath uint //msec
+	WaitMSecsBeforeSetReplicas1 uint //msec
 	CollectRestartAtEvent       string
 	SaveDataS3Endpoint          string
 	SaveDataS3ForcePathStyle    bool

@@ -13,6 +13,7 @@ package utils
 
 import (
 	"context"
+	"time"
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -23,7 +24,6 @@ import (
 
 type K8sClient struct {
 	ClusterConfig *rest.Config
-	ClientSet     *kubernetes.Clientset
 }
 
 func (k8s *K8sClient) Init() {
@@ -33,28 +33,49 @@ func (k8s *K8sClient) Init() {
 	if err != nil {
 		Logger.Errorf("InClusterConfig: %s", err.Error())
 	}
-	k8s.ClientSet, err = kubernetes.NewForConfig(k8s.ClusterConfig)
-	if err != nil {
-		Logger.Errorf("NewForConfig: %s", err.Error())
-	}
 }
 
 func (k8s *K8sClient) SetReplicasForDeployment(ns string, dName string, replicas int32) {
-	dScaleOld, err := k8s.ClientSet.AppsV1().
+	ClientSet, err := kubernetes.NewForConfig(k8s.ClusterConfig)
+	if err != nil {
+		Logger.Errorf("NewForConfig: %s", err.Error())
+	}
+
+	dScaleOld, err := ClientSet.AppsV1().
 		Deployments(ns).
 		GetScale(context.TODO(), dName, metav1.GetOptions{})
 	if err != nil {
 		Logger.Errorf("GetScale: %s", err.Error())
 	}
-
 	dScale := *dScaleOld
 	dScale.Spec.Replicas = replicas
 
-	k8s.ClientSet.AppsV1().Deployments(ns).UpdateScale(context.TODO(), dName, &dScale, metav1.UpdateOptions{})
+	for {
+		_, err = ClientSet.AppsV1().Deployments(ns).UpdateScale(context.TODO(), dName, &dScale, metav1.UpdateOptions{})
+		if err != nil {
+			Logger.Errorf("UpdateScale: %s", err.Error())
+			time.Sleep(time.Duration(50) * time.Millisecond)
+			dScaleOld, err = ClientSet.AppsV1().
+				Deployments(ns).
+				GetScale(context.TODO(), dName, metav1.GetOptions{})
+			if err != nil {
+				Logger.Errorf("GetScale: %s", err.Error())
+			}
+			dScale = *dScaleOld
+			dScale.Spec.Replicas = replicas
+		} else {
+			break
+		}
+	}
 }
 
 func (k8s *K8sClient) GetNodeNameList() (*[]string, error) {
-	if list, err := k8s.ClientSet.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{}); err == nil {
+	ClientSet, err := kubernetes.NewForConfig(k8s.ClusterConfig)
+	if err != nil {
+		Logger.Errorf("NewForConfig: %s", err.Error())
+	}
+
+	if list, err := ClientSet.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{}); err == nil {
 		var nodeNameList []string
 		for _, node := range list.Items {
 			nodeNameList = append(nodeNameList, node.Name)
@@ -79,19 +100,25 @@ func (k8s *K8sClient) UnsetTaint(nodeName string, Key string, Value string, Effe
 
 func (k8s *K8sClient) ApplyTaint(nodeName string, taint *v1.Taint) error {
 	var (
-		node    *v1.Node
-		err     error
-		updated bool
+		ClientSet *kubernetes.Clientset
+		node      *v1.Node
+		err       error
+		updated   bool
 	)
 
-	node, err = k8s.ClientSet.CoreV1().Nodes().Get(context.TODO(), nodeName, metav1.GetOptions{})
+	ClientSet, err = kubernetes.NewForConfig(k8s.ClusterConfig)
+	if err != nil {
+		Logger.Errorf("NewForConfig: %s", err.Error())
+	}
+
+	node, err = ClientSet.CoreV1().Nodes().Get(context.TODO(), nodeName, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
 
 	node, updated = k8s.addOrUpdateTaint(node, taint)
 	if updated {
-		if _, err = k8s.ClientSet.CoreV1().Nodes().Update(context.TODO(), node, metav1.UpdateOptions{}); err != nil {
+		if _, err = ClientSet.CoreV1().Nodes().Update(context.TODO(), node, metav1.UpdateOptions{}); err != nil {
 			Logger.Errorf("Failed to update node object: %v", err)
 			return err
 		}
@@ -100,7 +127,12 @@ func (k8s *K8sClient) ApplyTaint(nodeName string, taint *v1.Taint) error {
 }
 
 func (k8s *K8sClient) RemoveTaint(nodeName string, taint *v1.Taint) error {
-	node, err := k8s.ClientSet.CoreV1().Nodes().Get(context.TODO(), nodeName, metav1.GetOptions{})
+	ClientSet, err := kubernetes.NewForConfig(k8s.ClusterConfig)
+	if err != nil {
+		Logger.Errorf("NewForConfig: %s", err.Error())
+	}
+
+	node, err := ClientSet.CoreV1().Nodes().Get(context.TODO(), nodeName, metav1.GetOptions{})
 	if err != nil {
 		Logger.Errorf("Failed to remove taint: %v", err)
 		return err
@@ -108,7 +140,7 @@ func (k8s *K8sClient) RemoveTaint(nodeName string, taint *v1.Taint) error {
 	var updated bool
 	node, updated = k8s.removeTaint(node, taint)
 	if updated {
-		if _, err = k8s.ClientSet.CoreV1().Nodes().Update(context.TODO(), node, metav1.UpdateOptions{}); err != nil {
+		if _, err = ClientSet.CoreV1().Nodes().Update(context.TODO(), node, metav1.UpdateOptions{}); err != nil {
 			Logger.Errorf("Failed to update node object: %v", err)
 			return err
 		}

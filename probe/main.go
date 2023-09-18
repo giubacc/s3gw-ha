@@ -30,7 +30,8 @@ func main() {
 	flag.StringVar(&Cfg.SaveDataS3Endpoint, "save-data-endpoint", "http://localhost:7482", "Specify the save-data endpoint to save results")
 	flag.BoolVar(&Cfg.SaveDataS3ForcePathStyle, "save-data-path-style", true, "Force the save-data S3 Path Style")
 	flag.StringVar(&Cfg.SaveDataBucket, "save-data-bucket", "s3gw-ha-testing", "The bucket where to save results")
-	flag.UintVar(&Cfg.WaitMSecsBeforeTriggerDeath, "wbtd", 100, "Wait n milliseconds before trigger death")
+	flag.UintVar(&Cfg.WaitMSecsBeforeTriggerDeath, "wbtd", 0, "Wait n milliseconds before trigger death")
+	flag.UintVar(&Cfg.WaitMSecsBeforeSetReplicas1, "wbsr", 100, "Wait n milliseconds before set replicas 1")
 	flag.StringVar(&Cfg.CollectRestartAtEvent, "collectAt", "frontend-up", "The event where the probe should collect a restart event")
 	flag.StringVar(&Cfg.LogLevel, "v", "inf", "Specify logging verbosity [off, trc, inf, wrn, err]")
 	flag.UintVar(&Cfg.VerbLevel, "vl", 5, "Verbosity level")
@@ -142,6 +143,9 @@ func trigger(c *gin.Context) {
 		Prb.CurrentGinCtx = c.Copy()
 		Prb.CurrentInterposeFunc = fill
 	}
+
+	node := c.Query("node")
+	Prb.CurrentSelectedNode = node
 
 	Prb.RequestDie()
 }
