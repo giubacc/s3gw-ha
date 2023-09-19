@@ -45,6 +45,10 @@ spec:
           image: {{ include "s3gw-probe.image" . | quote }}
           imagePullPolicy: {{ default "IfNotPresent" .Values.backend.imagePullPolicy }}
           args:
+            - "-s3gw-ns"
+            - "s3gw-ha"
+            - "-s3gw-d"
+            - "s3gw-ha-s3gw"
             - "-s3gw-endpoint"
             - {{ .Values.s3gw.endpoint }}
             - "-wbtd"

@@ -42,6 +42,8 @@ func main() {
 
 	Logger = GetLogger(&Cfg)
 
+	Logger.Infof("Params:%v", Cfg)
+
 	//S3Clients
 
 	S3Client_S3GW = InitS3Client_S3GW()
