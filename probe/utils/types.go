@@ -27,13 +27,20 @@ type Config struct {
 	SaveDataBucket              string
 }
 
+type S3WorkloadEvent struct {
+	Id      int
+	StartTs int64 `json:"start_ts"` //start timestamp of this event
+	EndTs   int64 `json:"end_ts"`   //end timestamp of this event
+	Error   error `json:"error"`    //error for this event
+}
+
 type DeathEvent struct {
 	Type string `json:"type"`
-	Ts   uint64 `json:"ts"` //timestamp of this event
+	Ts   int64  `json:"ts"` //timestamp of this event
 }
 
 type StartEvent struct {
-	Ts    uint64 `json:"ts"`    //timestamp of this event
+	Ts    int64  `json:"ts"`    //timestamp of this event
 	Where string `json:"where"` //point where the radosgw sent the event
 }
 
@@ -45,35 +52,35 @@ type RestartEvent struct {
 }
 
 type RestartEntry struct {
-	Id                          int    `json:"restart_id"`
-	RestartDurationToMain       uint64 `json:"duration_to_main"`
-	RestartDurationToFrontendUp uint64 `json:"duration_to_frontend_up"`
-	FUpMainDelta                uint64 `json:"frontend_up_main_delta"`
+	Id                          int   `json:"restart_id"`
+	RestartDurationToMain       int64 `json:"duration_to_main"`
+	RestartDurationToFrontendUp int64 `json:"duration_to_frontend_up"`
+	FUpMainDelta                int64 `json:"frontend_up_main_delta"`
 }
 
 type SeriesEntry struct {
 	Mark             string         `json:"mark"`
-	MinMain          uint64         `json:"min_to_main"`
-	MaxMain          uint64         `json:"max_to_main"`
-	MeanMain         uint64         `json:"mean_to_main"`
-	Perc99Main       uint64         `json:"99p_to_main"`
-	Perc95Main       uint64         `json:"95p_to_main"`
-	PercNR99Main     uint64         `json:"99pNR_to_main"`
-	PercNR95Main     uint64         `json:"95pNR_to_main"`
-	MinFrontUp       uint64         `json:"min_to_frontend_up"`
-	MaxFrontUp       uint64         `json:"max_to_frontend_up"`
-	MeanFrontUp      uint64         `json:"mean_to_frontend_up"`
-	Perc99FrontUp    uint64         `json:"99p_to_frontend_up"`
-	Perc95FrontUp    uint64         `json:"95p_to_frontend_up"`
-	PercNR99FrontUp  uint64         `json:"99pNR_to_frontend_up"`
-	PercNR95FrontUp  uint64         `json:"95pNR_to_frontend_up"`
-	MinFUpMainD      uint64         `json:"min_frontend_up_main_delta"`
-	MaxFUpMainD      uint64         `json:"max_frontend_up_main_delta"`
-	MeanFUpMainD     uint64         `json:"mean_frontend_up_main_delta"`
-	Perc99FUpMainD   uint64         `json:"99p_frontend_up_main_delta"`
-	Perc95FUpMainD   uint64         `json:"95p_frontend_up_main_delta"`
-	PercNR99FUpMainD uint64         `json:"99pNR_frontend_up_main_delta"`
-	PercNR95FUpMainD uint64         `json:"95pNR_frontend_up_main_delta"`
+	MinMain          int64          `json:"min_to_main"`
+	MaxMain          int64          `json:"max_to_main"`
+	MeanMain         int64          `json:"mean_to_main"`
+	Perc99Main       int64          `json:"99p_to_main"`
+	Perc95Main       int64          `json:"95p_to_main"`
+	PercNR99Main     int64          `json:"99pNR_to_main"`
+	PercNR95Main     int64          `json:"95pNR_to_main"`
+	MinFrontUp       int64          `json:"min_to_frontend_up"`
+	MaxFrontUp       int64          `json:"max_to_frontend_up"`
+	MeanFrontUp      int64          `json:"mean_to_frontend_up"`
+	Perc99FrontUp    int64          `json:"99p_to_frontend_up"`
+	Perc95FrontUp    int64          `json:"95p_to_frontend_up"`
+	PercNR99FrontUp  int64          `json:"99pNR_to_frontend_up"`
+	PercNR95FrontUp  int64          `json:"95pNR_to_frontend_up"`
+	MinFUpMainD      int64          `json:"min_frontend_up_main_delta"`
+	MaxFUpMainD      int64          `json:"max_frontend_up_main_delta"`
+	MeanFUpMainD     int64          `json:"mean_frontend_up_main_delta"`
+	Perc99FUpMainD   int64          `json:"99p_frontend_up_main_delta"`
+	Perc95FUpMainD   int64          `json:"95p_frontend_up_main_delta"`
+	PercNR99FUpMainD int64          `json:"99pNR_frontend_up_main_delta"`
+	PercNR95FUpMainD int64          `json:"95pNR_frontend_up_main_delta"`
 	Data             []RestartEntry `json:"data"`
 }
 

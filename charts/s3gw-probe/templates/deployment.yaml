@@ -46,9 +46,9 @@ spec:
           imagePullPolicy: {{ default "IfNotPresent" .Values.backend.imagePullPolicy }}
           args:
             - "-s3gw-ns"
-            - "s3gw-ha"
+            - {{ default "s3gw-ha" .Values.s3gw.namespace }}
             - "-s3gw-d"
-            - "s3gw-ha-s3gw"
+            - {{ default "s3gw-ha-s3gw" .Values.s3gw.deploymentName }}
             - "-s3gw-endpoint"
             - {{ .Values.s3gw.endpoint }}
             - "-wbtd"

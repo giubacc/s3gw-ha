@@ -15,3 +15,5 @@ s3gw:
   secretKey: test
   waitMSecsBeforeTriggerDeath: "2000"
   saveDataEndpoint: "http://s3gw-sd-s3gw-sd.s3gw-sd.svc.cluster.local"
+  namespace: "s3gw-ha"
+  deploymentName: "s3gw-ha"

@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/igrmk/treemap/v2"
 	v1 "k8s.io/api/core/v1"
 )
 
@@ -38,7 +39,11 @@ func main() {
 
 	flag.Parse()
 
+	//Probe init
+
 	Prb.CollectedRestartRelatedData = make(map[string][]RestartEvent)
+	Prb.CollectedS3WorkloadRelatedData = make(map[string]*treemap.TreeMap[int64, S3WorkloadEvent])
+	Prb.S3WorkloadEvtChan = make(chan string)
 
 	Logger = GetLogger(&Cfg)
 
@@ -77,7 +82,7 @@ func main() {
 func setDeath(c *gin.Context) {
 	deathType := c.Query("type")
 	ts := c.Query("ts")
-	if ts, err := strconv.ParseUint(ts, 0, 64); err == nil {
+	if ts, err := strconv.ParseInt(ts, 0, 64); err == nil {
 		evt := DeathEvent{Type: deathType, Ts: ts}
 		Prb.SubmitDeath(&evt)
 	} else {
@@ -89,7 +94,7 @@ func setDeath(c *gin.Context) {
 func setStart(c *gin.Context) {
 	ts := c.Query("ts")
 	where := c.Query("where")
-	if ts, err := strconv.ParseUint(ts, 0, 64); err == nil {
+	if ts, err := strconv.ParseInt(ts, 0, 64); err == nil {
 		evt := StartEvent{Ts: ts, Where: where}
 		Prb.SubmitStart(&evt)
 	} else {
@@ -148,6 +153,16 @@ func trigger(c *gin.Context) {
 
 	node := c.Query("node")
 	Prb.CurrentSelectedNode = node
+
+	Prb.CurrentS3WorkloadCfg.FuncName = c.Query("s3-wl-func")
+	Prb.CurrentS3WorkloadCfg.GetFArgsMap(c.Query("s3-wl-args"))
+
+	if frequency, err := strconv.ParseUint(c.Query("s3-wl-freq"), 0, 32); err == nil {
+		Prb.CurrentS3WorkloadCfg.Frequency = uint(frequency)
+	} else {
+		Logger.Warn("absent/malformed s3-wl-freq, defaulting to 1 sec")
+		Prb.CurrentS3WorkloadCfg.Frequency = 1000
+	}
 
 	Prb.RequestDie()
 }

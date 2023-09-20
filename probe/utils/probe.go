@@ -14,13 +14,16 @@ package utils
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/gin-gonic/gin"
+	"github.com/igrmk/treemap/v2"
 	"github.com/montanaflynn/stats"
 	v1 "k8s.io/api/core/v1"
 )
@@ -39,13 +42,55 @@ const (
 	Sec    = 1000000000
 )
 
-var StrTimeUnit2TimeUnit = map[string]uint64{
+var StrTimeUnit2TimeUnit = map[string]int64{
 	StrNanoS:  NanoS,
 	StrMicroS: MicroS,
 	StrMilliS: MilliS,
 	StrSec:    Sec}
 
 type RestartRelatedData map[string][]RestartEvent
+
+type S3WorkloadConfig struct {
+	FuncName  string
+	FuncArgs  map[string]string
+	Frequency uint //msec
+}
+
+func (cfg *S3WorkloadConfig) Reset() {
+	cfg.FuncName = ""
+	cfg.Frequency = 0
+	if cfg.FuncArgs != nil {
+		for k := range cfg.FuncArgs {
+			delete(cfg.FuncArgs, k)
+		}
+	}
+}
+
+func (cfg *S3WorkloadConfig) GetFArgsMap(args string) error {
+	if cfg.FuncArgs == nil {
+		cfg.FuncArgs = make(map[string]string)
+	} else {
+		for k := range cfg.FuncArgs {
+			delete(cfg.FuncArgs, k)
+		}
+	}
+
+	if args != "" {
+		for _, parVal := range strings.Split(args, ",") {
+			tokens := strings.Split(parVal, "=")
+			if len(tokens) == 2 {
+				cfg.FuncArgs[tokens[0]] = tokens[1]
+				Logger.Infof("--- %s:%s", tokens[0], tokens[1])
+			} else {
+				Logger.Error("malformed FuncArgs")
+			}
+		}
+	}
+
+	return nil
+}
+
+type S3WorkloadRelatedData map[string]*treemap.TreeMap[int64, S3WorkloadEvent]
 
 type Probe struct {
 	CurrentDeath     *DeathEvent
@@ -62,8 +107,14 @@ type Probe struct {
 	CurrentNodeNameActiveIdx uint
 	CurrentSelectedNode      string
 	CurrentSelectedNodeSet   bool
+	CurrentS3WorkloadCfg     S3WorkloadConfig
+	CurrentS3WorkloadStarted bool
+	CurrentS3WorkId          int
 
-	CollectedRestartRelatedData RestartRelatedData
+	CollectedRestartRelatedData    RestartRelatedData
+	CollectedS3WorkloadRelatedData S3WorkloadRelatedData
+
+	S3WorkloadEvtChan chan string
 }
 
 func (p *Probe) ResetCurrentState() {
@@ -81,6 +132,10 @@ func (p *Probe) ResetCurrentState() {
 	p.CurrentNodeNameActiveIdx = 0
 	p.CurrentSelectedNode = ""
 	p.CurrentSelectedNodeSet = false
+
+	p.CurrentS3WorkloadCfg.Reset()
+	p.CurrentS3WorkloadStarted = false
+	p.CurrentS3WorkId = 0
 }
 
 func (p *Probe) Clear() {
@@ -110,8 +165,8 @@ func (p *Probe) SubmitStart(evt *StartEvent) {
 		if p.CurrentPendingRestarts > 0 {
 			time.Sleep(time.Duration(Cfg.WaitMSecsBeforeTriggerDeath) * time.Millisecond)
 			if p.CurrentGracePeriod > 0 {
-				Logger.Infof("waiting %d secs...", p.CurrentGracePeriod)
-				time.Sleep(time.Duration(p.CurrentGracePeriod) * time.Second)
+				Logger.Infof("waiting %d ms...", p.CurrentGracePeriod)
+				time.Sleep(time.Duration(p.CurrentGracePeriod) * time.Millisecond)
 			}
 			if p.CurrentInterposeFunc != nil && p.CurrentGinCtx != nil {
 				p.CurrentInterposeFunc(p.CurrentGinCtx)
@@ -119,9 +174,16 @@ func (p *Probe) SubmitStart(evt *StartEvent) {
 			p.RequestDie()
 		} else {
 
+			if p.CurrentS3WorkloadStarted {
+				Logger.Infof("asking S3 workload to stop ...")
+				p.S3WorkloadEvtChan <- "stop"
+			}
+
 			if p.CurrentMark == "unsolicited" {
 				return
 			}
+
+			//wrap up results and send those to S3
 
 			timeUnit := "ms"
 			genTS := strconv.Itoa(int(time.Now().Unix()))
@@ -253,6 +315,13 @@ func (p *Probe) SetK8sScheduleAllNodes() {
 }
 
 func (p *Probe) RequestDie() {
+	var err error
+	if !p.CurrentS3WorkloadStarted {
+		if p.CurrentS3WorkloadStarted, err = p.TriggerS3ClientWorkload(); err != nil {
+			Logger.Errorf("TriggerS3ClientWorkload:%s", err.Error())
+		}
+	}
+
 	if p.CurrentSelectedNode != "" && !p.CurrentSelectedNodeSet {
 		p.SetK8sNoScheduleAllNodes()
 		K8sCli.UnsetTaint(p.CurrentSelectedNode, "noSch", "1", v1.TaintEffectNoSchedule)
@@ -277,7 +346,61 @@ func (p *Probe) RequestDie() {
 	}
 }
 
-func GetSplitDataForSingleRestartRelatedData(restartEvents []RestartEvent, timeUnit uint64) ([]RestartEntry, []float64, []float64, []float64) {
+func (p *Probe) RunS3ClientWorkload_SendObject() {
+	Logger.Infof("workload started")
+
+	ticker := time.NewTicker(time.Millisecond * time.Duration(p.CurrentS3WorkloadCfg.Frequency))
+	defer ticker.Stop()
+
+	bucketName := p.CurrentS3WorkloadCfg.FuncArgs["bn"]
+	objName := p.CurrentS3WorkloadCfg.FuncArgs["on"]
+	payload := p.CurrentS3WorkloadCfg.FuncArgs["pl"]
+
+out:
+	for {
+		select {
+		case <-ticker.C:
+			start, end, err := SendObject(S3Client_S3GW, bucketName, objName, payload)
+			p.CurrentS3WorkId++
+
+			if p.CollectedS3WorkloadRelatedData[p.CurrentMark] == nil {
+				p.CollectedS3WorkloadRelatedData[p.CurrentMark] = treemap.New[int64, S3WorkloadEvent]()
+			}
+
+			s3WorkloadEvent := S3WorkloadEvent{Id: p.CurrentS3WorkId, StartTs: start, EndTs: end, Error: err}
+			p.CollectedS3WorkloadRelatedData[p.CurrentMark].Set(start, s3WorkloadEvent)
+
+			if p.CurrentS3WorkId%100 == 0 {
+				Logger.Infof("CollectedS3WorkloadRelatedData[%s] %d", p.CurrentMark, p.CollectedS3WorkloadRelatedData[p.CurrentMark].Len())
+			}
+
+		case evt := <-p.S3WorkloadEvtChan:
+			switch evt {
+			case "stop":
+				Logger.Infof("workload stopped")
+				break out
+			}
+		}
+	}
+
+	Logger.Infof("CollectedS3WorkloadRelatedData[%s] %d", p.CurrentMark, p.CollectedS3WorkloadRelatedData[p.CurrentMark].Len())
+}
+
+func (p *Probe) TriggerS3ClientWorkload() (bool, error) {
+	started := false
+	if p.CurrentS3WorkloadCfg.FuncName != "" {
+		switch p.CurrentS3WorkloadCfg.FuncName {
+		case "SendObject":
+			go p.RunS3ClientWorkload_SendObject()
+			started = true
+		default:
+			return false, errors.New("UnavailableWorkload")
+		}
+	}
+	return started, nil
+}
+
+func GetSplitDataForSingleRestartRelatedData(restartEvents []RestartEvent, timeUnit int64) ([]RestartEntry, []float64, []float64, []float64) {
 	var evtSeries []RestartEntry
 	var evtSeriesMainData []float64
 	var evtSeriesFrontedUpData []float64
@@ -312,87 +435,87 @@ func (p *Probe) ComputeStats(markPar string, timeUnit string, dumpAllData bool) 
 		lastSeries := &result.Series[len(result.Series)-1]
 
 		if val, err := stats.Min(evtSeriesMainData); err == nil {
-			lastSeries.MinMain = uint64(val)
+			lastSeries.MinMain = int64(val)
 		}
 
 		if val, err := stats.Max(evtSeriesMainData); err == nil {
-			lastSeries.MaxMain = uint64(val)
+			lastSeries.MaxMain = int64(val)
 		}
 
 		if val, err := stats.Mean(evtSeriesMainData); err == nil {
-			lastSeries.MeanMain = uint64(val)
+			lastSeries.MeanMain = int64(val)
 		}
 
 		if val, err := stats.Percentile(evtSeriesMainData, 99); err == nil {
-			lastSeries.Perc99Main = uint64(val)
+			lastSeries.Perc99Main = int64(val)
 		}
 
 		if val, err := stats.Percentile(evtSeriesMainData, 95); err == nil {
-			lastSeries.Perc95Main = uint64(val)
+			lastSeries.Perc95Main = int64(val)
 		}
 
 		if val, err := stats.PercentileNearestRank(evtSeriesMainData, 99); err == nil {
-			lastSeries.PercNR99Main = uint64(val)
+			lastSeries.PercNR99Main = int64(val)
 		}
 
 		if val, err := stats.PercentileNearestRank(evtSeriesMainData, 95); err == nil {
-			lastSeries.PercNR95Main = uint64(val)
+			lastSeries.PercNR95Main = int64(val)
 		}
 
 		if val, err := stats.Min(evtSeriesFrontedUpData); err == nil {
-			lastSeries.MinFrontUp = uint64(val)
+			lastSeries.MinFrontUp = int64(val)
 		}
 
 		if val, err := stats.Max(evtSeriesFrontedUpData); err == nil {
-			lastSeries.MaxFrontUp = uint64(val)
+			lastSeries.MaxFrontUp = int64(val)
 		}
 
 		if val, err := stats.Mean(evtSeriesFrontedUpData); err == nil {
-			lastSeries.MeanFrontUp = uint64(val)
+			lastSeries.MeanFrontUp = int64(val)
 		}
 
 		if val, err := stats.Percentile(evtSeriesFrontedUpData, 99); err == nil {
-			lastSeries.Perc99FrontUp = uint64(val)
+			lastSeries.Perc99FrontUp = int64(val)
 		}
 
 		if val, err := stats.Percentile(evtSeriesFrontedUpData, 95); err == nil {
-			lastSeries.Perc95FrontUp = uint64(val)
+			lastSeries.Perc95FrontUp = int64(val)
 		}
 
 		if val, err := stats.PercentileNearestRank(evtSeriesFrontedUpData, 99); err == nil {
-			lastSeries.PercNR99FrontUp = uint64(val)
+			lastSeries.PercNR99FrontUp = int64(val)
 		}
 
 		if val, err := stats.PercentileNearestRank(evtSeriesFrontedUpData, 95); err == nil {
-			lastSeries.PercNR95FrontUp = uint64(val)
+			lastSeries.PercNR95FrontUp = int64(val)
 		}
 
 		if val, err := stats.Min(evtSeriesFUpMainDelta); err == nil {
-			lastSeries.MinFUpMainD = uint64(val)
+			lastSeries.MinFUpMainD = int64(val)
 		}
 
 		if val, err := stats.Max(evtSeriesFUpMainDelta); err == nil {
-			lastSeries.MaxFUpMainD = uint64(val)
+			lastSeries.MaxFUpMainD = int64(val)
 		}
 
 		if val, err := stats.Mean(evtSeriesFUpMainDelta); err == nil {
-			lastSeries.MeanFUpMainD = uint64(val)
+			lastSeries.MeanFUpMainD = int64(val)
 		}
 
 		if val, err := stats.Percentile(evtSeriesFUpMainDelta, 99); err == nil {
-			lastSeries.Perc99FUpMainD = uint64(val)
+			lastSeries.Perc99FUpMainD = int64(val)
 		}
 
 		if val, err := stats.Percentile(evtSeriesFUpMainDelta, 95); err == nil {
-			lastSeries.Perc95FUpMainD = uint64(val)
+			lastSeries.Perc95FUpMainD = int64(val)
 		}
 
 		if val, err := stats.PercentileNearestRank(evtSeriesFUpMainDelta, 99); err == nil {
-			lastSeries.PercNR99FUpMainD = uint64(val)
+			lastSeries.PercNR99FUpMainD = int64(val)
 		}
 
 		if val, err := stats.PercentileNearestRank(evtSeriesFUpMainDelta, 95); err == nil {
-			lastSeries.PercNR95FUpMainD = uint64(val)
+			lastSeries.PercNR95FUpMainD = int64(val)
 		}
 
 		if dumpAllData {

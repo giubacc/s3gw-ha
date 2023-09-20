@@ -60,6 +60,9 @@ k3d-delete:
 k3d-deploy:
 	@./scripts/cluster-s3gw-deploy.sh
 
+k3d-probe-deploy:
+	@./scripts/cluster-probe-deploy.sh
+
 k3d-undeploy:
 	helm uninstall -n s3gw-ha s3gw-ha
 	helm uninstall -n s3gw-sd s3gw-sd

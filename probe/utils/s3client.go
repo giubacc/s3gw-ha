@@ -33,15 +33,15 @@ func CreateBucket(client *s3.S3, bucketName string) error {
 	return err
 }
 
-func SendObject(client *s3.S3, bucketName string, objName string, payload string) error {
-	if _, err := client.PutObject(&s3.PutObjectInput{
+func SendObject(client *s3.S3, bucketName string, objName string, payload string) (int64, int64, error) {
+	start := time.Now().UnixNano() / int64(time.Millisecond)
+	_, err := client.PutObject(&s3.PutObjectInput{
 		Bucket: &bucketName,
 		Key:    &objName,
-		Body:   bytes.NewReader([]byte(payload))}); err != nil {
-		Logger.Errorf("PutObject:%s", err.Error())
-		return err
-	}
-	return nil
+		Body:   bytes.NewReader([]byte(payload))})
+
+	end := time.Now().UnixNano() / int64(time.Millisecond)
+	return start, end, err
 }
 
 func EraseObject(client *s3.S3, bucketName string, objName string) error {

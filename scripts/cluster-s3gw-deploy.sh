@@ -58,19 +58,3 @@ deploy_s3gw_sd_latest_released
 
 echo
 echo "Done deploying s3gw-sd/s3gw-sd! ✔️"
-
-k3d image import -c s3gw-ha ghcr.io/giubacc/s3gw-probe:latest
-echo "Importing s3gw-probe image Completed ✔️"
-
-function deploy_s3gw_probe {
-  set +e
-  helm upgrade --wait --install -n s3gw-sd --create-namespace s3gw-probe charts/s3gw-probe \
-    --set backend.publicDomain="$S3GW_SYSTEM_DOMAIN"
-  set -e
-}
-
-echo "Deploying s3gw-probe"
-deploy_s3gw_probe
-
-echo
-echo "Done deploying s3gw-probe! ✔️"
