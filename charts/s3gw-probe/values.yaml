@@ -1,4 +1,4 @@
-backend:
+probe:
   ingress:
     enabled: true
   serviceName: ""
@@ -13,7 +13,7 @@ s3gw:
   endpoint: http://s3gw-ha-s3gw-ha.s3gw-ha.svc.cluster.local
   accessKey: test
   secretKey: test
-  waitMSecsBeforeTriggerDeath: "2000"
+  waitMSecsBeforeTriggerDeath: "200"
   saveDataEndpoint: "http://s3gw-sd-s3gw-sd.s3gw-sd.svc.cluster.local"
   namespace: "s3gw-ha"
   deploymentName: "s3gw-ha"

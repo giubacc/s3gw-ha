@@ -28,7 +28,7 @@ echo "Importing s3gw-probe image Completed ✔️"
 function deploy_s3gw_probe {
   set +e
   helm upgrade --wait --install -n s3gw-sd --create-namespace s3gw-probe charts/s3gw-probe \
-    --set backend.publicDomain="$S3GW_SYSTEM_DOMAIN"
+    --set probe.publicDomain="$S3GW_SYSTEM_DOMAIN"
   set -e
 }
 

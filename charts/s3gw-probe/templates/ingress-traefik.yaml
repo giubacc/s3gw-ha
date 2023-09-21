@@ -1,4 +1,4 @@
-{{- if .Values.backend.ingress.enabled }}
+{{- if .Values.probe.ingress.enabled }}
 ---
 # Backend Ingress
 apiVersion: networking.k8s.io/v1
@@ -13,7 +13,7 @@ metadata:
       '{{ .Release.Namespace }}-{{ include "s3gw-probe.CORSMiddlewareName" . }}@kubernetescrd'
 spec:
   rules:
-    - host: '{{ include "s3gw-probe.serviceName" . }}.{{ .Values.backend.publicDomain }}'
+    - host: '{{ include "s3gw-probe.serviceName" . }}.{{ .Values.probe.publicDomain }}'
       http:
         paths:
           - path: /

@@ -44,9 +44,9 @@ Version helpers for the image tag
 */}}
 {{- define "s3gw-probe.image" -}}
 {{- $defaulttag := printf "%s" "latest" }}
-{{- $tag := default $defaulttag .Values.backend.imageTag }}
-{{- $name := default "giubacc/s3gw-probe" .Values.backend.imageName }}
-{{- $registry := default "ghcr.io" .Values.backend.imageRegistry }}
+{{- $tag := default $defaulttag .Values.probe.imageTag }}
+{{- $name := default "giubacc/s3gw-probe" .Values.probe.imageName }}
+{{- $registry := default "ghcr.io" .Values.probe.imageRegistry }}
 {{- printf "%s/%s:%s" $registry $name $tag }}
 {{- end }}
 
@@ -67,10 +67,10 @@ Traefik Middleware CORS name
 {{- end }}
 
 {{/*
-Backend service name
+probe service name
 */}}
 {{- define "s3gw-probe.serviceName" -}}
 {{- $dsn := printf "%s-%s" .Release.Name .Release.Namespace }}
-{{- $name := default $dsn .Values.backend.serviceName }}
+{{- $name := default $dsn .Values.probe.serviceName }}
 {{- $name }}
 {{- end }}

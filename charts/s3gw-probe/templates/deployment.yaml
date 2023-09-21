@@ -43,7 +43,7 @@ spec:
       containers:
         - name: {{ .Release.Name }}
           image: {{ include "s3gw-probe.image" . | quote }}
-          imagePullPolicy: {{ default "IfNotPresent" .Values.backend.imagePullPolicy }}
+          imagePullPolicy: {{ default "IfNotPresent" .Values.probe.imagePullPolicy }}
           args:
             - "-s3gw-ns"
             - {{ default "s3gw-ha" .Values.s3gw.namespace }}
@@ -57,7 +57,7 @@ spec:
             - {{ .Values.s3gw.saveDataEndpoint }}
             - "-save-data-path-style"
             - "false"
-{{- range $.Values.backend.customArgs }}
+{{- range $.Values.probe.customArgs }}
             - {{ . | quote}}
 {{- end }}
           env:
@@ -65,7 +65,7 @@ spec:
               value: {{ .Values.s3gw.accessKey }}
             - name: AWS_SECRET_KEY
               value: {{ .Values.s3gw.secretKey }}
-{{- range $.Values.backend.customEnvs }}
+{{- range $.Values.probe.customEnvs }}
 {{- if (regexMatch "[^=]+=[^=]+" .) }}
 {{- $tokens := split "=" . }}
             - name: {{ $tokens._0 }}
@@ -73,7 +73,7 @@ spec:
 {{- else if (regexMatch "^[^=]" .) }}
             - name: {{ . }}
 {{- else }}
-{{- fail (print ".Values.backend.customEnvs contains an invalid entry: " .) }}
+{{- fail (print ".Values.probe.customEnvs contains an invalid entry: " .) }}
 {{- end }}
 {{- end }}
           ports:

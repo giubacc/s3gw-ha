@@ -17,8 +17,6 @@
 The original demand for this work can be found in this
 [issue](https://github.com/aquarist-labs/s3gw/issues/361).
 
-Find [here](docs/RATIONALE.md) the rationale for this research.
-
 ## Local setup
 
 ### Bootstrap

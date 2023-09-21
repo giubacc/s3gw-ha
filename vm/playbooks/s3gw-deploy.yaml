@@ -47,4 +47,4 @@
         git clone https://github.com/giubacc/s3gw-ha-research.git
         cd s3gw-ha-research
         helm upgrade --wait --install -n s3gw-sd --create-namespace s3gw-probe charts/s3gw-probe \
-          --set backend.publicDomain={{ S3GW_SYSTEM_DOMAIN }}
+          --set probe.publicDomain={{ S3GW_SYSTEM_DOMAIN }}
