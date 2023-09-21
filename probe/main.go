@@ -32,7 +32,7 @@ func main() {
 	flag.BoolVar(&Cfg.SaveDataS3ForcePathStyle, "save-data-path-style", true, "Force the save-data S3 Path Style")
 	flag.StringVar(&Cfg.SaveDataBucket, "save-data-bucket", "s3gw-ha-testing", "The bucket where to save results")
 	flag.UintVar(&Cfg.WaitMSecsBeforeTriggerDeath, "wbtd", 0, "Wait n milliseconds before trigger death")
-	flag.UintVar(&Cfg.WaitMSecsBeforeSetReplicas1, "wbsr", 100, "Wait n milliseconds before set replicas 1")
+	flag.UintVar(&Cfg.WaitMSecsBeforeSetReplicas1, "wbsr", 0, "Wait n milliseconds before set replicas 1")
 	flag.StringVar(&Cfg.CollectRestartAtEvent, "collectAt", "frontend-up", "The event where the probe should collect a restart event")
 	flag.StringVar(&Cfg.LogLevel, "v", "inf", "Specify logging verbosity [off, trc, inf, wrn, err]")
 	flag.UintVar(&Cfg.VerbLevel, "vl", 5, "Verbosity level")
@@ -138,6 +138,14 @@ func trigger(c *gin.Context) {
 	} else {
 		Prb.CurrentGracePeriod = 0
 	}
+
+	lieDownPeriod := c.Query("lieD")
+	if val, err := strconv.ParseUint(lieDownPeriod, 0, 32); err == nil {
+		Prb.CurrentLieDownPeriod = uint(val)
+	} else {
+		Prb.CurrentLieDownPeriod = 0
+	}
+
 	if restarts, err := strconv.ParseUint(c.Query("restarts"), 0, 32); err == nil {
 		Prb.CurrentPendingRestarts = uint(restarts)
 	} else {

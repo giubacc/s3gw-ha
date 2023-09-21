@@ -85,10 +85,10 @@ type SeriesRestartEntry struct {
 }
 
 type S3WorkloadEntry struct {
-	Id    int   `json:"restart_id"`
-	Start int64 `json:"start"`
-	End   int64 `json:"end"`
-	RTT   int64 `json:"rtt"`
+	Id    int     `json:"restart_id"`
+	Start int64   `json:"start"`
+	End   int64   `json:"end"`
+	RTT   float64 `json:"rtt"`
 	Err   error
 }
 type SeriesS3WorkloadEntry struct {

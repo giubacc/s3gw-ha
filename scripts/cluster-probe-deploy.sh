@@ -28,12 +28,20 @@ echo "Importing s3gw-probe image Completed ✔️"
 function deploy_s3gw_probe {
   set +e
   helm upgrade --wait --install -n s3gw-sd --create-namespace s3gw-probe charts/s3gw-probe \
+    --set probe.publicDomain="$S3GW_SYSTEM_DOMAIN" --set s3gw.endpoint=http://s3gw-ha-s3gw-ha."$S3GW_SYSTEM_DOMAIN"
+  set -e
+}
+
+function deploy_s3gw_probe_2_cluster_ip {
+  set +e
+  helm upgrade --wait --install -n s3gw-sd --create-namespace s3gw-probe charts/s3gw-probe \
     --set probe.publicDomain="$S3GW_SYSTEM_DOMAIN"
   set -e
 }
 
 echo "Deploying s3gw-probe"
 deploy_s3gw_probe
+#deploy_s3gw_probe_2_cluster_ip
 
 echo
 echo "Done deploying s3gw-probe! ✔️"

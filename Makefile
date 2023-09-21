@@ -114,7 +114,7 @@ probe-build:
 	go build -o probe/bin/probe probe/main.go
 
 probe-run:
-	probe/bin/probe -s3gw-endpoint http://localhost:7480 -wbtd 300
+	probe/bin/probe -s3gw-endpoint http://localhost:7480 -wbtd 300 -v trc
 
 probe-fr-up-run:
 	probe/bin/probe -s3gw-endpoint http://localhost:7480 -wbtd 300 -collectAt frontend-up

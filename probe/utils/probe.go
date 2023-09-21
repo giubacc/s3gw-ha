@@ -98,6 +98,7 @@ type Probe struct {
 
 	CurrentPendingRestarts   uint
 	CurrentGracePeriod       uint
+	CurrentLieDownPeriod     uint
 	CurrentDeathType         string
 	CurrentMark              string
 	CurrentId                int
@@ -120,6 +121,7 @@ type Probe struct {
 func (p *Probe) ResetCurrentState() {
 	p.CurrentPendingRestarts = 0
 	p.CurrentGracePeriod = 0
+	p.CurrentLieDownPeriod = 0
 	p.CurrentDeathType = ""
 	p.CurrentMark = ""
 	p.CurrentId = 0
@@ -165,7 +167,7 @@ func (p *Probe) SubmitStart(evt *StartEvent) {
 		if p.CurrentPendingRestarts > 0 {
 			time.Sleep(time.Duration(Cfg.WaitMSecsBeforeTriggerDeath) * time.Millisecond)
 			if p.CurrentGracePeriod > 0 {
-				Logger.Infof("waiting %d ms...", p.CurrentGracePeriod)
+				Logger.Infof("GRACE - waiting %d ms...", p.CurrentGracePeriod)
 				time.Sleep(time.Duration(p.CurrentGracePeriod) * time.Millisecond)
 			}
 			if p.CurrentInterposeFunc != nil && p.CurrentGinCtx != nil {
@@ -288,7 +290,16 @@ func (p *Probe) AskRadosgwToDie() {
 func (p *Probe) AskK8sScaleDeployment_0_1() {
 	K8sCli.SetReplicasForDeployment(Cfg.S3GWNamespace, Cfg.S3GWDeployment, 0)
 	Logger.Info("set replicas=0")
-	time.Sleep(time.Duration(Cfg.WaitMSecsBeforeSetReplicas1) * time.Millisecond)
+
+	if Cfg.WaitMSecsBeforeSetReplicas1 > 0 {
+		time.Sleep(time.Duration(Cfg.WaitMSecsBeforeSetReplicas1) * time.Millisecond)
+	}
+
+	if p.CurrentLieDownPeriod > 0 {
+		Logger.Infof("LIE-DOWN - waiting %d ms...", p.CurrentLieDownPeriod)
+		time.Sleep(time.Duration(p.CurrentLieDownPeriod) * time.Millisecond)
+	}
+
 	K8sCli.SetReplicasForDeployment(Cfg.S3GWNamespace, Cfg.S3GWDeployment, 1)
 	Logger.Info("set replicas=1")
 }
@@ -366,6 +377,10 @@ out:
 		select {
 		case <-ticker.C:
 			start, end, err := SendObject(S3Client_S3GW, bucketName, objName, payload)
+			if err != nil {
+				Logger.Debugf("SendObject: %s", err.Error())
+			}
+
 			p.CurrentS3WorkId++
 
 			if p.CollectedS3WorkloadRelatedData[p.CurrentMark] == nil {
@@ -551,9 +566,10 @@ func GetSplitDataForSingleS3WorkloadRelatedData(restartEvents *treemap.TreeMap[i
 		evtSeries = append(evtSeries, S3WorkloadEntry{Id: val.Id,
 			Start: val.StartTs,
 			End:   val.EndTs,
-			RTT:   (val.EndTs - val.StartTs) / timeUnit})
+			RTT:   (float64(val.EndTs) - float64(val.StartTs)) / float64(timeUnit),
+			Err:   val.Error})
 
-		evtSeriesRTTData = append(evtSeriesRTTData, float64(evtSeries[len(evtSeries)-1].RTT))
+		evtSeriesRTTData = append(evtSeriesRTTData, evtSeries[len(evtSeries)-1].RTT)
 	}
 	return evtSeries, evtSeriesRTTData
 }

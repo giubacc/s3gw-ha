@@ -74,7 +74,7 @@ func (bars *S3WorkloadBars) Plot(c draw.Canvas, plt *plot.Plot) {
 		// to the corresponding drawing coordinate.
 		x := trX(float64(((it.Start - (*bars.S3WLE)[0].Start) / bars.TimeUnit)))
 		y0 := trY(0)
-		y := trY(float64(it.RTT))
+		y := trY(it.RTT)
 
 		bar := c.ClipLinesY([]vg.Point{{X: x, Y: y0}, {X: x, Y: y}})
 		c.StrokeLines(lineStyle, bar...)
@@ -92,7 +92,7 @@ func (bars *S3WorkloadBars) DataRange() (xmin, xmax, ymin, ymax float64) {
 	for _, it := range *bars.S3WLE {
 		xmin = math.Min(xmin, float64(((it.Start - (*bars.S3WLE)[0].Start) / bars.TimeUnit)))
 		xmax = math.Max(xmax, float64(((it.Start - (*bars.S3WLE)[0].Start) / bars.TimeUnit)))
-		ymax = math.Max(ymax, float64(it.RTT))
+		ymax = math.Max(ymax, it.RTT)
 	}
 	return
 }

@@ -16,7 +16,7 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 NETWORK_NAME=s3gw-ha
 CLUSTER_NAME=s3gw-ha
 K3S_IMAGE=${K3S_IMAGE:-rancher/k3s:v1.25.10-k3s1}
-AGENT_NODES=${AGENT_NODES:-1}
+AGENT_NODES=${AGENT_NODES:-0}
 export KUBECONFIG=$SCRIPT_DIR/../tmp/ha-kubeconfig
 
 check_deps() {

@@ -276,15 +276,40 @@ func (p *Probe) GenerateS3WorkloadRawDataPlot(timeUnit string, fileName string, 
 				pts[1].X = float64(((it.StartFrontendUp.Ts - evtSeries[0].Start) / tU))
 				pts[1].Y = maxRTT / 2
 
+				for fIt := s3WLEvents.UpperBound(it.StartFrontendUp.Ts); fIt.Valid(); fIt.Next() {
+					val := fIt.Value()
+					if val.Error == nil {
+						pts := make(plotter.XYs, 2)
+						pts[0].X = float64(((it.StartFrontendUp.Ts - evtSeries[0].Start) / tU))
+						pts[0].Y = maxRTT / 2
+
+						pts[1].X = float64(((val.StartTs - evtSeries[0].Start) / tU))
+						pts[1].Y = maxRTT / 2
+
+						line, points, err := plotter.NewLinePoints(pts)
+						if err != nil {
+							Logger.Error("GenerateS3WorkloadRawDataPlot: NewLinePoints", err.Error())
+							return "", err
+						}
+
+						line.Color = plotutil.Color(2)
+						points.Shape = draw.TriangleGlyph{}
+						points.Color = plotutil.Color(2)
+
+						plt.Add(line, points)
+						break
+					}
+				}
+
 				line, points, err := plotter.NewLinePoints(pts)
 				if err != nil {
 					Logger.Error("GenerateS3WorkloadRawDataPlot: NewLinePoints", err.Error())
 					return "", err
 				}
 
-				line.Color = plotutil.Color(0)
+				line.Color = plotutil.Color(3)
 				points.Shape = draw.CircleGlyph{}
-				points.Color = plotutil.Color(0)
+				points.Color = plotutil.Color(3)
 
 				plt.Add(line, points)
 			}
