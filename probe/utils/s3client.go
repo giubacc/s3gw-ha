@@ -34,13 +34,13 @@ func CreateBucket(client *s3.S3, bucketName string) error {
 }
 
 func SendObject(client *s3.S3, bucketName string, objName string, payload string) (int64, int64, error) {
-	start := time.Now().UnixNano() / int64(time.Millisecond)
+	start := time.Now().UnixNano()
 	_, err := client.PutObject(&s3.PutObjectInput{
 		Bucket: &bucketName,
 		Key:    &objName,
 		Body:   bytes.NewReader([]byte(payload))})
 
-	end := time.Now().UnixNano() / int64(time.Millisecond)
+	end := time.Now().UnixNano()
 	return start, end, err
 }
 

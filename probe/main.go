@@ -120,7 +120,10 @@ func computeStats(c *gin.Context) {
 	}
 
 	genTS := strconv.Itoa(int(time.Now().Unix()))
-	stats := Prb.ComputeStats(mark, timeUnit, dumpAllData)
+	stats := Stats{TimeUnit: timeUnit}
+
+	Prb.ComputeRestartStats(&stats, mark, timeUnit, dumpAllData)
+	Prb.ComputeS3WorkloadStats(&stats, mark, timeUnit, dumpAllData)
 
 	fNames := Prb.Render(genTS, timeUnit, stats)
 	SendStatsArtifactsToS3(S3Client_SaveData, Cfg.SaveDataBucket, fNames)

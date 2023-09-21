@@ -187,7 +187,10 @@ func (p *Probe) SubmitStart(evt *StartEvent) {
 
 			timeUnit := "ms"
 			genTS := strconv.Itoa(int(time.Now().Unix()))
-			stats := p.ComputeStats(p.CurrentMark, timeUnit, true)
+			stats := Stats{TimeUnit: timeUnit}
+
+			p.ComputeRestartStats(&stats, p.CurrentMark, timeUnit, true)
+			p.ComputeS3WorkloadStats(&stats, p.CurrentMark, timeUnit, true)
 
 			SendStatsArtifactsToS3(S3Client_SaveData, Cfg.SaveDataBucket, p.Render(genTS, timeUnit, stats))
 
@@ -200,10 +203,12 @@ func (p *Probe) Render(genTS string, timeUnit string, stats Stats) []string {
 	fNames := []string{}
 
 	fStat, _ := SaveStats(p.CurrentMark, genTS, stats)
-	fRaw, _ := GenerateRawDataPlot(Prb.CollectedRestartRelatedData, p.CurrentMark, timeUnit, p.CurrentMark, genTS)
-	fP1, fP2, fP3, _ := GeneratePercentilesPlot(Prb.CollectedRestartRelatedData, p.CurrentMark, timeUnit, p.CurrentMark, genTS)
+	fRestartRaw, _ := p.GenerateRestartRawDataPlot(timeUnit, p.CurrentMark, genTS)
+	fRestartP1, fRestartP2, fRestartP3, _ := p.GenerateRestartPercentilesPlot(timeUnit, p.CurrentMark, genTS)
 
-	fNames = append(fNames, fStat, fRaw, fP1, fP2, fP3)
+	fS3WLRaw, _ := p.GenerateS3WorkloadRawDataPlot(timeUnit, p.CurrentMark, genTS)
+
+	fNames = append(fNames, fStat, fRestartRaw, fRestartP1, fRestartP2, fRestartP3, fS3WLRaw)
 
 	return fNames
 }
@@ -418,8 +423,7 @@ func GetSplitDataForSingleRestartRelatedData(restartEvents []RestartEvent, timeU
 	return evtSeries, evtSeriesMainData, evtSeriesFrontedUpData, evtSeriesFUpMainDelta
 }
 
-func (p *Probe) ComputeStats(markPar string, timeUnit string, dumpAllData bool) Stats {
-	result := Stats{TimeUnit: timeUnit}
+func (p *Probe) ComputeRestartStats(sts *Stats, markPar string, timeUnit string, dumpAllData bool) *Stats {
 	for mark, restartEvents := range Prb.CollectedRestartRelatedData {
 
 		if markPar != "all" && markPar != mark {
@@ -431,8 +435,8 @@ func (p *Probe) ComputeStats(markPar string, timeUnit string, dumpAllData bool) 
 			evtSeriesFrontedUpData,
 			evtSeriesFUpMainDelta := GetSplitDataForSingleRestartRelatedData(restartEvents, StrTimeUnit2TimeUnit[timeUnit])
 
-		result.Series = append(result.Series, SeriesEntry{Mark: mark})
-		lastSeries := &result.Series[len(result.Series)-1]
+		sts.SeriesRestart = append(sts.SeriesRestart, SeriesRestartEntry{Mark: mark})
+		lastSeries := &sts.SeriesRestart[len(sts.SeriesRestart)-1]
 
 		if val, err := stats.Min(evtSeriesMainData); err == nil {
 			lastSeries.MinMain = int64(val)
@@ -522,7 +526,7 @@ func (p *Probe) ComputeStats(markPar string, timeUnit string, dumpAllData bool) 
 			lastSeries.Data = evtSeries
 		}
 	}
-	return result
+	return sts
 }
 
 func SaveStats(mark string, genTS string, stats Stats) (string, error) {
@@ -537,4 +541,68 @@ func SaveStats(mark string, genTS string, stats Stats) (string, error) {
 		}
 		return fName, nil
 	}
+}
+
+func GetSplitDataForSingleS3WorkloadRelatedData(restartEvents *treemap.TreeMap[int64, S3WorkloadEvent], timeUnit int64) ([]S3WorkloadEntry, []float64) {
+	var evtSeries []S3WorkloadEntry
+	var evtSeriesRTTData []float64
+	for it := restartEvents.Iterator(); it.Valid(); it.Next() {
+		val := it.Value()
+		evtSeries = append(evtSeries, S3WorkloadEntry{Id: val.Id,
+			Start: val.StartTs,
+			End:   val.EndTs,
+			RTT:   (val.EndTs - val.StartTs) / timeUnit})
+
+		evtSeriesRTTData = append(evtSeriesRTTData, float64(evtSeries[len(evtSeries)-1].RTT))
+	}
+	return evtSeries, evtSeriesRTTData
+}
+
+func (p *Probe) ComputeS3WorkloadStats(sts *Stats, markPar string, timeUnit string, dumpAllData bool) *Stats {
+	for mark, s3WLEvents := range Prb.CollectedS3WorkloadRelatedData {
+
+		if markPar != "all" && markPar != mark {
+			continue
+		}
+
+		evtSeries,
+			evtSeriesRTTData := GetSplitDataForSingleS3WorkloadRelatedData(s3WLEvents, StrTimeUnit2TimeUnit[timeUnit])
+
+		sts.SeriesS3Workload = append(sts.SeriesS3Workload, SeriesS3WorkloadEntry{Mark: mark})
+		lastSeries := &sts.SeriesS3Workload[len(sts.SeriesS3Workload)-1]
+
+		if val, err := stats.Min(evtSeriesRTTData); err == nil {
+			lastSeries.MinRTT = int64(val)
+		}
+
+		if val, err := stats.Max(evtSeriesRTTData); err == nil {
+			lastSeries.MaxRTT = int64(val)
+		}
+
+		if val, err := stats.Mean(evtSeriesRTTData); err == nil {
+			lastSeries.MeanRTT = int64(val)
+		}
+
+		if val, err := stats.Percentile(evtSeriesRTTData, 99); err == nil {
+			lastSeries.Perc99RTT = int64(val)
+		}
+
+		if val, err := stats.Percentile(evtSeriesRTTData, 95); err == nil {
+			lastSeries.Perc95RTT = int64(val)
+		}
+
+		if val, err := stats.PercentileNearestRank(evtSeriesRTTData, 99); err == nil {
+			lastSeries.PercNR99RTT = int64(val)
+		}
+
+		if val, err := stats.PercentileNearestRank(evtSeriesRTTData, 95); err == nil {
+			lastSeries.PercNR95RTT = int64(val)
+		}
+
+		if dumpAllData {
+			lastSeries.Data = evtSeries
+		}
+	}
+
+	return sts
 }

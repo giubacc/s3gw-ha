@@ -58,7 +58,7 @@ type RestartEntry struct {
 	FUpMainDelta                int64 `json:"frontend_up_main_delta"`
 }
 
-type SeriesEntry struct {
+type SeriesRestartEntry struct {
 	Mark             string         `json:"mark"`
 	MinMain          int64          `json:"min_to_main"`
 	MaxMain          int64          `json:"max_to_main"`
@@ -84,8 +84,29 @@ type SeriesEntry struct {
 	Data             []RestartEntry `json:"data"`
 }
 
+type S3WorkloadEntry struct {
+	Id    int   `json:"restart_id"`
+	Start int64 `json:"start"`
+	End   int64 `json:"end"`
+	RTT   int64 `json:"rtt"`
+	Err   error
+}
+type SeriesS3WorkloadEntry struct {
+	Mark        string            `json:"mark"`
+	MinRTT      int64             `json:"min_to_main"`
+	MaxRTT      int64             `json:"max_to_main"`
+	MeanRTT     int64             `json:"mean_to_main"`
+	Perc99RTT   int64             `json:"99p_to_main"`
+	Perc95RTT   int64             `json:"95p_to_main"`
+	PercNR99RTT int64             `json:"99pNR_to_main"`
+	PercNR95RTT int64             `json:"95pNR_to_main"`
+	Data        []S3WorkloadEntry `json:"data"`
+}
+
 type Stats struct {
-	SeriesCount uint          `json:"series_count"`
-	Series      []SeriesEntry `json:"series"`
-	TimeUnit    string        `json:"time_unit"`
+	SeriesRestartCount    uint                    `json:"series_restart_count"`
+	SeriesRestart         []SeriesRestartEntry    `json:"series_restart"`
+	SeriesS3WorkloadCount uint                    `json:"series_s3_workload_count"`
+	SeriesS3Workload      []SeriesS3WorkloadEntry `json:"series_s3_workload"`
+	TimeUnit              string                  `json:"time_unit"`
 }

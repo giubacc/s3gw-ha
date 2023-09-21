@@ -22,19 +22,15 @@ import (
 	"gonum.org/v1/plot/vg/draw"
 )
 
-func GenerateRawDataPlot(data RestartRelatedData,
-	mark string,
-	timeUnit string,
-	fileName string,
-	genTS string) (string, error) {
+func (p *Probe) GenerateRestartRawDataPlot(timeUnit string, fileName string, genTS string) (string, error) {
 
-	if restartEvents, hit := data[mark]; hit {
-		p := plot.New()
-		p.Add(plotter.NewGrid())
+	if restartEvents, hit := p.CollectedRestartRelatedData[p.CurrentMark]; hit {
+		plt := plot.New()
+		plt.Add(plotter.NewGrid())
 
-		p.Title.Text = "Raw Data Measures: " + mark
-		p.X.Label.Text = "Restart ID"
-		p.Y.Label.Text = "Duration: " + timeUnit
+		plt.Title.Text = "Raw Data Measures: " + p.CurrentMark
+		plt.X.Label.Text = "Restart ID"
+		plt.Y.Label.Text = "Duration: " + timeUnit
 
 		_,
 			evtSeriesMainData,
@@ -59,8 +55,8 @@ func GenerateRawDataPlot(data RestartRelatedData,
 			lpPointsMain.Shape = draw.PyramidGlyph{}
 			lpPointsMain.Color = plotutil.Color(0)
 
-			p.Add(lpLineMain, lpPointsMain)
-			p.Legend.Add("to-main", lpLineMain, lpPointsMain)
+			plt.Add(lpLineMain, lpPointsMain)
+			plt.Legend.Add("to-main", lpLineMain, lpPointsMain)
 		}
 
 		//fronted-up
@@ -81,8 +77,8 @@ func GenerateRawDataPlot(data RestartRelatedData,
 			lpPointsFUp.Shape = draw.PyramidGlyph{}
 			lpPointsFUp.Color = plotutil.Color(1)
 
-			p.Add(lpLineFUp, lpPointsFUp)
-			p.Legend.Add("to-fronted-up", lpLineFUp, lpPointsFUp)
+			plt.Add(lpLineFUp, lpPointsFUp)
+			plt.Legend.Add("to-fronted-up", lpLineFUp, lpPointsFUp)
 		}
 
 		//delta
@@ -103,13 +99,13 @@ func GenerateRawDataPlot(data RestartRelatedData,
 			lpPointsFUpD.Shape = draw.PyramidGlyph{}
 			lpPointsFUpD.Color = plotutil.Color(2)
 
-			p.Add(lpLineFUpD, lpPointsFUpD)
-			p.Legend.Add("fronted-up-main-delta", lpLineFUpD, lpPointsFUpD)
+			plt.Add(lpLineFUpD, lpPointsFUpD)
+			plt.Legend.Add("fronted-up-main-delta", lpLineFUpD, lpPointsFUpD)
 		}
 
 		fName := fileName + "_" + "raw" + "_" + genTS + ".svg"
 
-		if err := p.Save(30*vg.Centimeter, 20*vg.Centimeter, fName); err != nil {
+		if err := plt.Save(30*vg.Centimeter, 20*vg.Centimeter, fName); err != nil {
 			Logger.Error("GeneratePlot: Saving plot:", fName)
 			return "", err
 		}
@@ -117,17 +113,13 @@ func GenerateRawDataPlot(data RestartRelatedData,
 		return fName, nil
 
 	} else {
-		Logger.Error("GeneratePlot: no series with mark:", mark)
+		Logger.Error("GeneratePlot: no series with mark:", p.CurrentMark)
 		return "", errors.New("no series with mark")
 	}
 }
 
-func GeneratePercentilesPlot(data RestartRelatedData,
-	mark string,
-	timeUnit string,
-	fileName string,
-	genTS string) (string, string, string, error) {
-	if restartEvents, hit := data[mark]; hit {
+func (p *Probe) GenerateRestartPercentilesPlot(timeUnit string, fileName string, genTS string) (string, string, string, error) {
+	if restartEvents, hit := p.CollectedRestartRelatedData[p.CurrentMark]; hit {
 		_,
 			evtSeriesMainData,
 			evtSeriesFrontedUpData,
@@ -138,12 +130,12 @@ func GeneratePercentilesPlot(data RestartRelatedData,
 		fNameMain := fileName + "_percentiles_to_main_" + genTS + ".svg"
 
 		{
-			p := plot.New()
-			p.Add(plotter.NewGrid())
+			plt := plot.New()
+			plt.Add(plotter.NewGrid())
 
-			p.Title.Text = "Percentiles - Main (Nearest Rank): " + mark
-			p.X.Label.Text = "Percentile"
-			p.Y.Label.Text = "Duration: " + timeUnit
+			plt.Title.Text = "Percentiles - Main (Nearest Rank): " + p.CurrentMark
+			plt.X.Label.Text = "Percentile"
+			plt.Y.Label.Text = "Duration: " + timeUnit
 
 			pts := make(plotter.XYs, 100)
 			for i := 1; i <= 100; i++ {
@@ -162,10 +154,10 @@ func GeneratePercentilesPlot(data RestartRelatedData,
 			lpPoints.Shape = draw.PyramidGlyph{}
 			lpPoints.Color = plotutil.Color(0)
 
-			p.Add(lpLine, lpPoints)
-			p.Legend.Add("to-main", lpLine, lpPoints)
+			plt.Add(lpLine, lpPoints)
+			plt.Legend.Add("to-main", lpLine, lpPoints)
 
-			if err := p.Save(30*vg.Centimeter, 20*vg.Centimeter, fNameMain); err != nil {
+			if err := plt.Save(30*vg.Centimeter, 20*vg.Centimeter, fNameMain); err != nil {
 				Logger.Error("GeneratePlot: Saving plot:", fNameMain)
 				return "", "", "", err
 			}
@@ -176,12 +168,12 @@ func GeneratePercentilesPlot(data RestartRelatedData,
 		fNameFUp := fileName + "_percentiles_to_fup_" + genTS + ".svg"
 
 		{
-			p := plot.New()
-			p.Add(plotter.NewGrid())
+			plt := plot.New()
+			plt.Add(plotter.NewGrid())
 
-			p.Title.Text = "Percentiles - FrontEndUp (Nearest Rank): " + mark
-			p.X.Label.Text = "Percentile"
-			p.Y.Label.Text = "Duration: " + timeUnit
+			plt.Title.Text = "Percentiles - FrontEndUp (Nearest Rank): " + p.CurrentMark
+			plt.X.Label.Text = "Percentile"
+			plt.Y.Label.Text = "Duration: " + timeUnit
 
 			pts := make(plotter.XYs, 100)
 			for i := 1; i <= 100; i++ {
@@ -200,10 +192,10 @@ func GeneratePercentilesPlot(data RestartRelatedData,
 			lpPoints.Shape = draw.PyramidGlyph{}
 			lpPoints.Color = plotutil.Color(1)
 
-			p.Add(lpLine, lpPoints)
-			p.Legend.Add("to-fronted-up", lpLine, lpPoints)
+			plt.Add(lpLine, lpPoints)
+			plt.Legend.Add("to-fronted-up", lpLine, lpPoints)
 
-			if err := p.Save(30*vg.Centimeter, 20*vg.Centimeter, fNameFUp); err != nil {
+			if err := plt.Save(30*vg.Centimeter, 20*vg.Centimeter, fNameFUp); err != nil {
 				Logger.Error("GeneratePlot: Saving plot:", fNameFUp)
 				return "", "", "", err
 			}
@@ -214,12 +206,12 @@ func GeneratePercentilesPlot(data RestartRelatedData,
 		fNameFUpD := fileName + "_percentiles_fup_main_delta_" + genTS + ".svg"
 
 		{
-			p := plot.New()
-			p.Add(plotter.NewGrid())
+			plt := plot.New()
+			plt.Add(plotter.NewGrid())
 
-			p.Title.Text = "Percentiles - FrontEndUp-Main-Delta (Nearest Rank): " + mark
-			p.X.Label.Text = "Percentile"
-			p.Y.Label.Text = "Duration: " + timeUnit
+			plt.Title.Text = "Percentiles - FrontEndUp-Main-Delta (Nearest Rank): " + p.CurrentMark
+			plt.X.Label.Text = "Percentile"
+			plt.Y.Label.Text = "Duration: " + timeUnit
 
 			pts := make(plotter.XYs, 100)
 			for i := 1; i <= 100; i++ {
@@ -238,10 +230,10 @@ func GeneratePercentilesPlot(data RestartRelatedData,
 			lpPoints.Shape = draw.PyramidGlyph{}
 			lpPoints.Color = plotutil.Color(2)
 
-			p.Add(lpLine, lpPoints)
-			p.Legend.Add("to-fronted-up", lpLine, lpPoints)
+			plt.Add(lpLine, lpPoints)
+			plt.Legend.Add("to-fronted-up", lpLine, lpPoints)
 
-			if err := p.Save(30*vg.Centimeter, 20*vg.Centimeter, fNameFUpD); err != nil {
+			if err := plt.Save(30*vg.Centimeter, 20*vg.Centimeter, fNameFUpD); err != nil {
 				Logger.Error("GeneratePlot: Saving plot:", fNameFUpD)
 				return "", "", "", err
 			}
@@ -250,7 +242,74 @@ func GeneratePercentilesPlot(data RestartRelatedData,
 		return fNameMain, fNameFUp, fNameFUpD, nil
 
 	} else {
-		Logger.Error("GeneratePercentilesPlot: no series with mark:", mark)
+		Logger.Error("GeneratePercentilesPlot: no series with mark:", p.CurrentMark)
 		return "", "", "", errors.New("no series with mark")
+	}
+}
+
+func (p *Probe) GenerateS3WorkloadRawDataPlot(timeUnit string, fileName string, genTS string) (string, error) {
+
+	if s3WLEvents, hit := p.CollectedS3WorkloadRelatedData[p.CurrentMark]; hit {
+
+		tU := StrTimeUnit2TimeUnit[timeUnit]
+		plt := plot.New()
+		plt.Add(plotter.NewGrid())
+
+		plt.Title.Text = "RTT S3Workload: " + p.CurrentMark
+		plt.X.Label.Text = "Relative Time"
+		plt.Y.Label.Text = "Duration: " + timeUnit
+
+		evtSeries,
+			evtSeriesRTTData := GetSplitDataForSingleS3WorkloadRelatedData(s3WLEvents, tU)
+
+		//Draw correlated restart durations
+		if restartEvents, hit := p.CollectedRestartRelatedData[p.CurrentMark]; hit {
+			var maxRTT float64 = 0
+			maxRTT, _ = stats.Max(evtSeriesRTTData)
+
+			for _, it := range restartEvents {
+				pts := make(plotter.XYs, 2)
+
+				pts[0].X = float64(((it.Death.Ts - evtSeries[0].Start) / tU))
+				pts[0].Y = maxRTT / 2
+
+				pts[1].X = float64(((it.StartFrontendUp.Ts - evtSeries[0].Start) / tU))
+				pts[1].Y = maxRTT / 2
+
+				line, points, err := plotter.NewLinePoints(pts)
+				if err != nil {
+					Logger.Error("GenerateS3WorkloadRawDataPlot: NewLinePoints", err.Error())
+					return "", err
+				}
+
+				line.Color = plotutil.Color(0)
+				points.Shape = draw.CircleGlyph{}
+				points.Color = plotutil.Color(0)
+
+				plt.Add(line, points)
+			}
+		}
+
+		//RTT
+		{
+			bars, err := NewVBars(&evtSeries, timeUnit)
+			if err != nil {
+				Logger.Errorf("NewVBars: %s", err.Error())
+			}
+			plt.Add(bars)
+		}
+
+		fName := fileName + "_S3WL_raw" + "_" + genTS + ".svg"
+
+		if err := plt.Save(30*vg.Centimeter, 20*vg.Centimeter, fName); err != nil {
+			Logger.Errorf("GenerateS3WorkloadRawDataPlot: Saving plot: %s", fName)
+			return "", err
+		}
+
+		return fName, nil
+
+	} else {
+		Logger.Errorf("GenerateS3WorkloadRawDataPlot: no series with mark: %s", p.CurrentMark)
+		return "", errors.New("no series with mark")
 	}
 }

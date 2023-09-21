@@ -8,7 +8,8 @@
     - [Build the s3gw probe](#build-the-s3gw-probe)
     - [Create the cluster](#create-the-cluster)
     - [Delete the cluster](#delete-the-cluster)
-    - [Deploy the s3gw and the testing tools on the cluster](#deploy-the-s3gw-and-the-testing-tools-on-the-cluster)
+    - [Deploy the s3gw on the cluster](#deploy-the-s3gw-on-the-cluster)
+    - [Deploy the s3gw-probe tool on the cluster](#deploy-the-s3gw-probe-tool-on-the-cluster)
     - [Undeploy the s3gw and the testing tools from the cluster](#undeploy-the-s3gw-and-the-testing-tools-from-the-cluster)
     - [Probe examples](#probe-examples)
   - [License](#license)
@@ -93,10 +94,16 @@ make k3d-start
 make k3d-delete
 ```
 
-### Deploy the s3gw and the testing tools on the cluster
+### Deploy the s3gw on the cluster
 
 ```shell
 make k3d-deploy
+```
+
+### Deploy the s3gw-probe tool on the cluster
+
+```shell
+make k3d-probe-deploy
 ```
 
 ### Undeploy the s3gw and the testing tools from the cluster
