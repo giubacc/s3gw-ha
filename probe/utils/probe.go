@@ -149,6 +149,9 @@ func (p *Probe) Clear() {
 	for k := range p.CollectedRestartRelatedData {
 		delete(p.CollectedRestartRelatedData, k)
 	}
+	for k := range p.CollectedS3WorkloadRelatedData {
+		delete(p.CollectedS3WorkloadRelatedData, k)
+	}
 }
 
 func (p *Probe) SubmitDeath(evt *DeathEvent) {
