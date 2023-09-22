@@ -22,7 +22,7 @@ import (
 	"gonum.org/v1/plot/vg/draw"
 )
 
-func (p *Probe) GenerateRestartRawDataPlot(timeUnit string, fileName string, genTS string) (string, error) {
+func (p *Probe) GenerateRestartRawDataPlot(timeUnit string, genTS string) (string, error) {
 
 	if restartEvents, hit := p.CollectedRestartRelatedData[p.CurrentMark]; hit {
 		plt := plot.New()
@@ -103,7 +103,7 @@ func (p *Probe) GenerateRestartRawDataPlot(timeUnit string, fileName string, gen
 			plt.Legend.Add("fronted-up-main-delta", lpLineFUpD, lpPointsFUpD)
 		}
 
-		fName := fileName + "_" + "raw" + "_" + genTS + ".svg"
+		fName := genTS + "_" + p.CurrentMark + "_raw" + ".svg"
 
 		if err := plt.Save(30*vg.Centimeter, 20*vg.Centimeter, fName); err != nil {
 			Logger.Error("GeneratePlot: Saving plot:", fName)
@@ -118,7 +118,7 @@ func (p *Probe) GenerateRestartRawDataPlot(timeUnit string, fileName string, gen
 	}
 }
 
-func (p *Probe) GenerateRestartPercentilesPlot(timeUnit string, fileName string, genTS string) (string, string, string, error) {
+func (p *Probe) GenerateRestartPercentilesPlot(timeUnit string, genTS string) (string, string, string, error) {
 	if restartEvents, hit := p.CollectedRestartRelatedData[p.CurrentMark]; hit {
 		_,
 			evtSeriesMainData,
@@ -127,7 +127,7 @@ func (p *Probe) GenerateRestartPercentilesPlot(timeUnit string, fileName string,
 
 		//main
 
-		fNameMain := fileName + "_percentiles_to_main_" + genTS + ".svg"
+		fNameMain := genTS + "_" + p.CurrentMark + "_percentiles_to_main" + ".svg"
 
 		{
 			plt := plot.New()
@@ -165,7 +165,7 @@ func (p *Probe) GenerateRestartPercentilesPlot(timeUnit string, fileName string,
 
 		//fronted-up
 
-		fNameFUp := fileName + "_percentiles_to_fup_" + genTS + ".svg"
+		fNameFUp := genTS + "_" + p.CurrentMark + "_percentiles_to_fup" + ".svg"
 
 		{
 			plt := plot.New()
@@ -203,7 +203,7 @@ func (p *Probe) GenerateRestartPercentilesPlot(timeUnit string, fileName string,
 
 		//fronted-up-main-delta
 
-		fNameFUpD := fileName + "_percentiles_fup_main_delta_" + genTS + ".svg"
+		fNameFUpD := genTS + "_" + p.CurrentMark + "_percentiles_fup_main_delta" + ".svg"
 
 		{
 			plt := plot.New()
@@ -247,7 +247,7 @@ func (p *Probe) GenerateRestartPercentilesPlot(timeUnit string, fileName string,
 	}
 }
 
-func (p *Probe) GenerateS3WorkloadRawDataPlot(timeUnit string, fileName string, genTS string) (string, error) {
+func (p *Probe) GenerateS3WorkloadRawDataPlot(timeUnit string, genTS string) (string, error) {
 
 	if s3WLEvents, hit := p.CollectedS3WorkloadRelatedData[p.CurrentMark]; hit {
 
@@ -256,13 +256,13 @@ func (p *Probe) GenerateS3WorkloadRawDataPlot(timeUnit string, fileName string, 
 		plt.Add(plotter.NewGrid())
 
 		plt.Title.Text = "RTT S3Workload: " + p.CurrentMark
-		plt.X.Label.Text = "Relative Time"
-		plt.Y.Label.Text = "Duration: " + timeUnit
+		plt.X.Label.Text = "Time"
+		plt.Y.Label.Text = "RTT: " + timeUnit
 
 		evtSeries,
 			evtSeriesRTTData := GetSplitDataForSingleS3WorkloadRelatedData(s3WLEvents, tU)
 
-		//Draw correlated restart durations
+		//Draw correlated restart durations (yellow)
 		if restartEvents, hit := p.CollectedRestartRelatedData[p.CurrentMark]; hit {
 			var maxRTT float64 = 0
 			maxRTT, _ = stats.Max(evtSeriesRTTData)
@@ -276,6 +276,7 @@ func (p *Probe) GenerateS3WorkloadRawDataPlot(timeUnit string, fileName string, 
 				pts[1].X = float64(((it.StartFrontendUp.Ts - evtSeries[0].Start) / tU))
 				pts[1].Y = maxRTT / 2
 
+				//Draw correlated interval before first successful operation (cyan)
 				for fIt := s3WLEvents.UpperBound(it.StartFrontendUp.Ts); fIt.Valid(); fIt.Next() {
 					val := fIt.Value()
 					if val.Error == nil {
@@ -324,7 +325,7 @@ func (p *Probe) GenerateS3WorkloadRawDataPlot(timeUnit string, fileName string, 
 			plt.Add(bars)
 		}
 
-		fName := fileName + "_S3WL_raw" + "_" + genTS + ".svg"
+		fName := genTS + "_" + p.CurrentMark + "_S3WL_RTT_raw" + ".svg"
 
 		if err := plt.Save(30*vg.Centimeter, 20*vg.Centimeter, fName); err != nil {
 			Logger.Errorf("GenerateS3WorkloadRawDataPlot: Saving plot: %s", fName)

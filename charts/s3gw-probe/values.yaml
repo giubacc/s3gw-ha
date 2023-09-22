@@ -11,9 +11,11 @@ probe:
   imagePullPolicy:
 s3gw:
   endpoint: http://s3gw-ha-s3gw-ha.s3gw-ha.svc.cluster.local
+  endpointIngress:
   accessKey: test
   secretKey: test
   waitMSecsBeforeTriggerDeath: "200"
-  saveDataEndpoint: "http://s3gw-sd-s3gw-sd.s3gw-sd.svc.cluster.local"
   namespace: "s3gw-ha"
   deploymentName: "s3gw-ha"
+saveData:
+  endpoint: "http://s3gw-sd-s3gw-sd.s3gw-sd.svc.cluster.local"

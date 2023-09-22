@@ -64,7 +64,7 @@ func (bars *S3WorkloadBars) Plot(c draw.Canvas, plt *plot.Plot) {
 	lineStyle := bars.LineStyle
 
 	for _, it := range *bars.S3WLE {
-		if it.Err != nil {
+		if it.ErrDesc != "" {
 			lineStyle.Color = bars.ColorErr
 		} else {
 			lineStyle.Color = bars.ColorOK

@@ -53,10 +53,12 @@ spec:
             - {{ default "s3gw-ha-s3gw" .Values.s3gw.deploymentName }}
             - "-s3gw-endpoint"
             - {{ .Values.s3gw.endpoint }}
+            - "-s3gw-endpoint-ing"
+            - {{ .Values.s3gw.endpointIngress }}
             - "-wbtd"
             - '{{ .Values.s3gw.waitMSecsBeforeTriggerDeath }}'
             - "-save-data-endpoint"
-            - {{ .Values.s3gw.saveDataEndpoint }}
+            - {{ .Values.saveData.endpoint }}
             - "-save-data-path-style"
             - "false"
 {{- range $.Values.probe.customArgs }}

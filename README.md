@@ -1,8 +1,7 @@
-# s3gw-ha-research
+# s3gw-probe
 
-- [s3gw-ha-research](#s3gw-ha-research)
+- [s3gw-probe](#s3gw-probe)
   - [Local setup](#local-setup)
-    - [Bootstrap](#bootstrap)
     - [Requirements](#requirements)
     - [Build the s3gw backend image](#build-the-s3gw-backend-image)
     - [Build the s3gw probe](#build-the-s3gw-probe)
@@ -14,19 +13,7 @@
     - [Probe examples](#probe-examples)
   - [License](#license)
 
-The original demand for this work can be found in this
-[issue](https://github.com/aquarist-labs/s3gw/issues/361).
-
 ## Local setup
-
-### Bootstrap
-
-> **Before doing anything else**: ensure to execute the following command
-> after the clone:
-
-```shell
-git submodule update --init --recursive
-```
 
 ### Requirements
 
@@ -37,6 +24,13 @@ git submodule update --init --recursive
 - Go (1.20+)
 
 ### Build the s3gw backend image
+
+> Ensure to execute the following command
+> after the clone:
+
+```shell
+git submodule update --init --recursive
+```
 
 Build the s3gw's image:
 

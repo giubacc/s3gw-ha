@@ -25,6 +25,7 @@ import (
 
 func main() {
 	flag.StringVar(&Cfg.S3GWEndpoint, "s3gw-endpoint", "http://localhost:7480", "Specify the s3gw endpoint")
+	flag.StringVar(&Cfg.S3GWEndpointIngress, "s3gw-endpoint-ing", "", "Specify the s3gw endpoint - Ingress")
 	flag.StringVar(&Cfg.S3GWNamespace, "s3gw-ns", "s3gw-ha", "Specify the s3gw namespace")
 	flag.StringVar(&Cfg.S3GWDeployment, "s3gw-d", "s3gw-ha", "Specify the s3gw deployment name")
 	flag.BoolVar(&Cfg.S3GWS3ForcePathStyle, "s3gw-path-style", true, "Force the s3gw S3 Path Style")
@@ -52,6 +53,7 @@ func main() {
 	//S3Clients
 
 	S3Client_S3GW = InitS3Client_S3GW()
+	S3Client_S3GW_ingress = InitS3Client_S3GW_Ingress()
 	S3Client_SaveData = InitS3Client_SaveData()
 
 	if err := CreateBucket(S3Client_SaveData, Cfg.SaveDataBucket); err != nil {
@@ -173,6 +175,12 @@ func trigger(c *gin.Context) {
 	} else {
 		Logger.Warn("absent/malformed s3-wl-freq, defaulting to 1 sec")
 		Prb.CurrentS3WorkloadCfg.Frequency = 1000
+	}
+
+	if c.Query("s3-wl-ing") == "1" {
+		Prb.CurrentS3WorkloadCfg.Client = S3Client_S3GW_ingress
+	} else {
+		Prb.CurrentS3WorkloadCfg.Client = S3Client_S3GW
 	}
 
 	Prb.RequestDie()

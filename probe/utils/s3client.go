@@ -24,6 +24,7 @@ import (
 
 var S3Client_SaveData *s3.S3
 var S3Client_S3GW *s3.S3
+var S3Client_S3GW_ingress *s3.S3
 
 func CreateBucket(client *s3.S3, bucketName string) error {
 	_, err := client.CreateBucket(&s3.CreateBucketInput{
@@ -125,6 +126,24 @@ func InitS3Client_S3GW() *s3.S3 {
 
 	if err != nil {
 		Logger.Errorf("InitS3Client_S3GW: Failed to initialize new session:%s", err.Error())
+		return nil
+	}
+
+	s3Client := s3.New(session)
+	return s3Client
+}
+
+func InitS3Client_S3GW_Ingress() *s3.S3 {
+	session, err := session.NewSessionWithOptions(session.Options{
+		Config: aws.Config{
+			S3ForcePathStyle: &Cfg.S3GWS3ForcePathStyle,
+			Endpoint:         &Cfg.S3GWEndpointIngress,
+			Region:           aws.String("US"),
+		},
+	})
+
+	if err != nil {
+		Logger.Errorf("InitS3Client_S3GW_Ingress: Failed to initialize new session:%s", err.Error())
 		return nil
 	}
 

@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/gin-gonic/gin"
 	"github.com/igrmk/treemap/v2"
 	"github.com/montanaflynn/stats"
@@ -51,12 +52,14 @@ var StrTimeUnit2TimeUnit = map[string]int64{
 type RestartRelatedData map[string][]RestartEvent
 
 type S3WorkloadConfig struct {
+	Client    *s3.S3
 	FuncName  string
 	FuncArgs  map[string]string
 	Frequency uint //msec
 }
 
 func (cfg *S3WorkloadConfig) Reset() {
+	cfg.Client = nil
 	cfg.FuncName = ""
 	cfg.Frequency = 0
 	if cfg.FuncArgs != nil {
@@ -108,9 +111,10 @@ type Probe struct {
 	CurrentNodeNameActiveIdx uint
 	CurrentSelectedNode      string
 	CurrentSelectedNodeSet   bool
+
 	CurrentS3WorkloadCfg     S3WorkloadConfig
 	CurrentS3WorkloadStarted bool
-	CurrentS3WorkId          int
+	CurrentS3WorkloadId      int
 
 	CollectedRestartRelatedData    RestartRelatedData
 	CollectedS3WorkloadRelatedData S3WorkloadRelatedData
@@ -137,7 +141,7 @@ func (p *Probe) ResetCurrentState() {
 
 	p.CurrentS3WorkloadCfg.Reset()
 	p.CurrentS3WorkloadStarted = false
-	p.CurrentS3WorkId = 0
+	p.CurrentS3WorkloadId = 0
 }
 
 func (p *Probe) Clear() {
@@ -194,7 +198,9 @@ func (p *Probe) SubmitStart(evt *StartEvent) {
 			p.ComputeRestartStats(&stats, p.CurrentMark, timeUnit, true)
 			p.ComputeS3WorkloadStats(&stats, p.CurrentMark, timeUnit, true)
 
+			Logger.Infof("Saving generated artifacts ...")
 			SendStatsArtifactsToS3(S3Client_SaveData, Cfg.SaveDataBucket, p.Render(genTS, timeUnit, stats))
+			Logger.Infof("Saved")
 
 			p.ResetCurrentState()
 		}
@@ -204,11 +210,11 @@ func (p *Probe) SubmitStart(evt *StartEvent) {
 func (p *Probe) Render(genTS string, timeUnit string, stats Stats) []string {
 	fNames := []string{}
 
-	fStat, _ := SaveStats(p.CurrentMark, genTS, stats)
-	fRestartRaw, _ := p.GenerateRestartRawDataPlot(timeUnit, p.CurrentMark, genTS)
-	fRestartP1, fRestartP2, fRestartP3, _ := p.GenerateRestartPercentilesPlot(timeUnit, p.CurrentMark, genTS)
+	fStat, _ := p.SaveStats(genTS, stats)
+	fRestartRaw, _ := p.GenerateRestartRawDataPlot(timeUnit, genTS)
+	fRestartP1, fRestartP2, fRestartP3, _ := p.GenerateRestartPercentilesPlot(timeUnit, genTS)
 
-	fS3WLRaw, _ := p.GenerateS3WorkloadRawDataPlot(timeUnit, p.CurrentMark, genTS)
+	fS3WLRaw, _ := p.GenerateS3WorkloadRawDataPlot(timeUnit, genTS)
 
 	fNames = append(fNames, fStat, fRestartRaw, fRestartP1, fRestartP2, fRestartP3, fS3WLRaw)
 
@@ -376,21 +382,21 @@ out:
 	for {
 		select {
 		case <-ticker.C:
-			start, end, err := SendObject(S3Client_S3GW, bucketName, objName, payload)
+			start, end, err := SendObject(p.CurrentS3WorkloadCfg.Client, bucketName, objName, payload)
 			if err != nil {
 				Logger.Debugf("SendObject: %s", err.Error())
 			}
 
-			p.CurrentS3WorkId++
+			p.CurrentS3WorkloadId++
 
 			if p.CollectedS3WorkloadRelatedData[p.CurrentMark] == nil {
 				p.CollectedS3WorkloadRelatedData[p.CurrentMark] = treemap.New[int64, S3WorkloadEvent]()
 			}
 
-			s3WorkloadEvent := S3WorkloadEvent{Id: p.CurrentS3WorkId, StartTs: start, EndTs: end, Error: err}
+			s3WorkloadEvent := S3WorkloadEvent{Id: p.CurrentS3WorkloadId, StartTs: start, EndTs: end, Error: err}
 			p.CollectedS3WorkloadRelatedData[p.CurrentMark].Set(start, s3WorkloadEvent)
 
-			if p.CurrentS3WorkId%100 == 0 {
+			if p.CurrentS3WorkloadId%100 == 0 {
 				Logger.Infof("CollectedS3WorkloadRelatedData[%s] %d", p.CurrentMark, p.CollectedS3WorkloadRelatedData[p.CurrentMark].Len())
 			}
 
@@ -544,17 +550,25 @@ func (p *Probe) ComputeRestartStats(sts *Stats, markPar string, timeUnit string,
 	return sts
 }
 
-func SaveStats(mark string, genTS string, stats Stats) (string, error) {
+func (p *Probe) SaveStats(genTS string, stats Stats) (string, error) {
 	if resultFile, err := json.MarshalIndent(stats, "", " "); err != nil {
 		Logger.Errorf("json.MarshalIndent:%s", err.Error())
 		return "", err
 	} else {
-		fName := mark + "_stats_" + genTS + ".json"
+		fName := genTS + "_" + p.CurrentMark + "_stats" + ".json"
 		if err := os.WriteFile(fName, resultFile, 0644); err != nil {
 			Logger.Errorf("os.WriteFile:%s", err.Error())
 			return "", err
 		}
 		return fName, nil
+	}
+}
+
+func unwrapErrorStr(e error) string {
+	if e != nil {
+		return e.Error()
+	} else {
+		return ""
 	}
 }
 
@@ -564,10 +578,10 @@ func GetSplitDataForSingleS3WorkloadRelatedData(restartEvents *treemap.TreeMap[i
 	for it := restartEvents.Iterator(); it.Valid(); it.Next() {
 		val := it.Value()
 		evtSeries = append(evtSeries, S3WorkloadEntry{Id: val.Id,
-			Start: val.StartTs,
-			End:   val.EndTs,
-			RTT:   (float64(val.EndTs) - float64(val.StartTs)) / float64(timeUnit),
-			Err:   val.Error})
+			Start:   val.StartTs,
+			End:     val.EndTs,
+			RTT:     (float64(val.EndTs) - float64(val.StartTs)) / float64(timeUnit),
+			ErrDesc: unwrapErrorStr(val.Error)})
 
 		evtSeriesRTTData = append(evtSeriesRTTData, evtSeries[len(evtSeries)-1].RTT)
 	}

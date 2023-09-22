@@ -12,10 +12,10 @@
 package utils
 
 type Config struct {
-	//logging
 	LogLevel                    string
 	VerbLevel                   uint
 	S3GWEndpoint                string
+	S3GWEndpointIngress         string
 	S3GWNamespace               string
 	S3GWDeployment              string
 	S3GWS3ForcePathStyle        bool
@@ -29,9 +29,9 @@ type Config struct {
 
 type S3WorkloadEvent struct {
 	Id      int
-	StartTs int64 `json:"start_ts"` //start timestamp of this event
-	EndTs   int64 `json:"end_ts"`   //end timestamp of this event
-	Error   error `json:"error"`    //error for this event
+	StartTs int64 //start timestamp of this event
+	EndTs   int64 //end timestamp of this event
+	Error   error //error for this event
 }
 
 type DeathEvent struct {
@@ -85,21 +85,21 @@ type SeriesRestartEntry struct {
 }
 
 type S3WorkloadEntry struct {
-	Id    int     `json:"restart_id"`
-	Start int64   `json:"start"`
-	End   int64   `json:"end"`
-	RTT   float64 `json:"rtt"`
-	Err   error
+	Id      int     `json:"wl_id"`
+	Start   int64   `json:"start"`
+	End     int64   `json:"end"`
+	RTT     float64 `json:"rtt"`
+	ErrDesc string  `json:"err_desc"`
 }
 type SeriesS3WorkloadEntry struct {
 	Mark        string            `json:"mark"`
-	MinRTT      int64             `json:"min_to_main"`
-	MaxRTT      int64             `json:"max_to_main"`
-	MeanRTT     int64             `json:"mean_to_main"`
-	Perc99RTT   int64             `json:"99p_to_main"`
-	Perc95RTT   int64             `json:"95p_to_main"`
-	PercNR99RTT int64             `json:"99pNR_to_main"`
-	PercNR95RTT int64             `json:"95pNR_to_main"`
+	MinRTT      int64             `json:"min_RTT"`
+	MaxRTT      int64             `json:"max_RTT"`
+	MeanRTT     int64             `json:"mean_RTT"`
+	Perc99RTT   int64             `json:"99p_RTT"`
+	Perc95RTT   int64             `json:"95p_RTT"`
+	PercNR99RTT int64             `json:"99pNR_RTT"`
+	PercNR95RTT int64             `json:"95pNR_RTT"`
 	Data        []S3WorkloadEntry `json:"data"`
 }
 
