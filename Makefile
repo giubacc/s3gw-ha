@@ -34,7 +34,7 @@ s3gw-build:
 s3gw-push-image:
 	docker push ghcr.io/giubacc/s3gw:latest
 
-docker-probe-build:
+probe-docker-build:
 	docker build -t ghcr.io/giubacc/s3gw-probe:latest -f dockerfiles/Dockerfile.s3gw-probe .
 
 probe-push-image:
